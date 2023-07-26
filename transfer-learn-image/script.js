@@ -221,6 +221,7 @@ function predictLoop() {
         tf.tidy(function () {
             let imageFeatures = calculateFeaturesOnCurrentFrame();
             let prediction = model.predict(imageFeatures.expandDims()).squeeze();
+            console.log('Prediction', prediction)
             let highestIndex = prediction.argMax().arraySync();
             let predictionArray = prediction.arraySync();
             STATUS.innerText = 'Prediction: ' + CLASS_NAMES[highestIndex] + ' with ' + Math.floor(predictionArray[highestIndex] * 100) + '% confidence';
