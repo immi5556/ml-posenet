@@ -113,7 +113,11 @@ limitations under the License.
             var ctx = canvas.getContext('2d');
             canvas.width = img.width;
             canvas.height = img.height;
-            ctx.drawImage(img, 0, 0);
+            //ctx.drawImage(img, 0, 0);
+            var ratio = img.naturalWidth / img.naturalHeight;
+            var width = canvas.width;
+            var height = width / ratio;
+            ctx.drawImage(img, 0, 0, width, height);
         };
         btndetect.onclick = function () {
             if (model_lo)
