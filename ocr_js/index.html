@@ -44,7 +44,7 @@
                 <span class="file_remove">X</span>
                 <img id="img" src="" /> <br /> <br />
                 <div class="btn_convert">
-                    <button id="btn_convert" class="custom-btn btn-12"><span>Click!</span><span>Image To
+                    <button id="btn_convert" class="custom-btn btn-12"><span>Capture!</span><span>Image To
                             Text</span></button>
                 </div>
                 <div id="message">Recognizing...</div>
@@ -58,7 +58,7 @@
         var btnconvert = document.getElementById("btn_convert");
         btnUpload.on("change", function (e) {
             var ext = btnUpload.val().split('.').pop().toLowerCase();
-            if ($.inArray(ext, ['gif', 'png', 'jpg', 'jpeg', 'webp']) == -1) {
+            if ($.inArray(ext, ['gif', 'png', 'jpg', 'jpeg', 'webp', 'jfif']) == -1) {
                 $(".error_msg").text("Not an Image...");
             } else {
                 $(".error_msg").text("");
@@ -89,7 +89,7 @@
         const { createWorker } = Tesseract;
 
         const worker = createWorker({
-            langPath: '/',
+            langPath: '/', // change './' to '/' for prod deploy
             gzip: false,
             logger: m => console.log(m)
         });
