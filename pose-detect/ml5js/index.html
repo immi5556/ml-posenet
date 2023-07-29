@@ -131,7 +131,11 @@
         img.onload = function () {
             canvas.width = img.width;
             canvas.height = img.height;
-            ctx.drawImage(img, 0, 0);
+            //ctx.drawImage(img, 0, 0);
+            var ratio = img.naturalWidth / img.naturalHeight;
+            var width = canvas.width;
+            var height = width / ratio;
+            ctx.drawImage(img, 0, 0, width, height);
         };
         const randomColor = () => `hsl(${~~(360 * Math.random())}, 100%, 40%)`;
         const drawResult = ([x, y, w, h], label, confidence) => {
