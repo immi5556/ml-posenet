@@ -14,8 +14,11 @@
     <meta name="Language" content="en, en-us, en-gb, en-bz, en-za" />
     <meta name="viewport" content="initial-scale = 1.0,maximum-scale = 1.0" />
     <link rel="shortcut icon" type="image/png" href="https://immanuel.co/favicon.ico" />
+    <script src="https://code.jquery.com/jquery-3.3.1.min.js"></script>
+    <link href="style.css" rel="stylesheet" type="text/css">
     <script src="tf.min.js"></script>
     <script src="posenet.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/ark-js-util@latest/ark-util.js"></script>
 </head>
 
 <body>
@@ -23,9 +26,64 @@
     <!-- <script src="https://unpkg.com/@tensorflow/tfjs"></script> -->
     <!-- Load Posenet -->
     <!-- <script src="https://unpkg.com/@tensorflow-models/posenet"> </script>-->
-    <img id="pse_1" src="pose_6.jpg" /> <br />
-    <button id="detect">Detect</button> <br />
-    <canvas id="canvas"></canvas>
+
+    <div id="classes">
+        <h2>Pose Detect</h2>
+    </div>
+    <br /><br />
+
+    <main class="main_full">
+        <div class="container">
+            <div class="panel">
+                <div class="button_outer">
+                    <div class="btn_upload">
+                        <input type="file" id="upload_file" name="">
+                        Upload Image
+                    </div>
+                    <div class="processing_bar"></div>
+                    <div class="success_box"></div>
+                </div>
+            </div>
+            <div class="error_msg"></div>
+            <div class="uploaded_file_view" id="uploaded_view">
+                <span class="file_remove">X</span>
+                <img id="img" src="pose_1.jpg" /> <br /> <br />
+                <div class="btn_detect">
+                    <button id="detect" class="custom-btn btn-12"><span>Completed.. :)</span><span>Detect
+                            Pose</span></button>
+                </div>
+                <canvas id="canvas"></canvas>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        var btnUpload = $("#upload_file"),
+            btnOuter = $(".button_outer");
+        btnUpload.on("change", function (e) {
+            var ext = btnUpload.val().split('.').pop().toLowerCase();
+            if ($.inArray(ext, ['gif', 'png', 'jpg', 'jpeg']) == -1) {
+                $(".error_msg").text("Not an Image...");
+            } else {
+                $(".error_msg").text("");
+                btnOuter.addClass("file_uploading");
+                setTimeout(function () {
+                    btnOuter.addClass("file_uploaded");
+                }, 1000);
+                var uploadedFile = URL.createObjectURL(e.target.files[0]);
+                setTimeout(function () {
+                    $("#img").attr('src', uploadedFile);
+                    $("#uploaded_view").addClass("show")
+                }, 1500);
+            }
+        });
+        $(".file_remove").on("click", function (e) {
+            $("#uploaded_view").removeClass("show");
+            //$("#uploaded_view").find("img").remove();
+            btnOuter.removeClass("file_uploading");
+            btnOuter.removeClass("file_uploaded");
+        });
+    </script>
     <script type="text/javascript">
         // posenet model loaded
         const imageScaleFactor = 0.50;
@@ -37,7 +95,7 @@
         const scoreThreshold = 0.5;
         // minimum distance in pixels between the root parts of poses
         const nmsRadius = 20;
-        const imageElement = document.getElementById('pse_1');
+        const imageElement = document.getElementById('img');
         // load posenet
         //const net = await posenet.load();
         let pose_model = null;
@@ -53,14 +111,22 @@
                 imageElement, imageScaleFactor, flipHorizontal, outputStride,
                 maxPoseDetections, scoreThreshold, nmsRadius);
             console.log(poses)
+            var scrcnt = 0;
             poses.forEach(t => {
                 t.keypoints.forEach(t1 => {
-                    if (t.score > .5)
+                    if (t.score > .5) {
                         drawResult([t1.position.x, t1.position.y, 1, 1], t1.part, t.score);
+                        scrcnt++;
+                    }
                 })
+                if (!scrcnt) {
+                    t.keypoints.forEach(t1 => {
+                        drawResult([t1.position.x, t1.position.y, 1, 1], t1.part, t.score);
+                    })
+                }
             })
         }
-        const img = document.getElementById("pse_1");
+        const img = document.getElementById('img');
         var ctx = canvas.getContext('2d');
         img.onload = function () {
             canvas.width = img.width;
