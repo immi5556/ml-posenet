@@ -20,6 +20,7 @@
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-webgl"></script>
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/pose-detection"></script>
     <script src="posenet.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/ark-js-util@1.1.5/ark-util.js"></script>
     <style>
         .footer {
             position: fixed;
@@ -93,10 +94,17 @@
 
 <body>
     <div id="info" style='display:none'></div>
+    <div id="debug-log">
+        <h3>Debug Log</h3>
+    </div>
     <video id="video" playsinline style="display: none;">
     </video>
     <canvas id="output" />
     <script>
+        var debuglog = document.getElementById("debug-log");
+        debuglog.style.display = 'none';
+        var qs = util.qs();
+        if (qs['debug']) debuglog.style.display = 'block';
         const color = 'aqua';
         const boundingBoxColor = 'red';
         const lineWidth = 2;
@@ -383,6 +391,7 @@
                 // For each pose (i.e. person) detected in an image, loop through the poses
                 // and draw the resulting skeleton and keypoints if over certain confidence
                 // scores
+                console.log(poses);
                 poses.forEach(({ score, keypoints }) => {
                     if (score >= minPoseConfidence) {
                         if (guiState.output.showPoints) {
