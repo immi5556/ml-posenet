@@ -362,3 +362,4 @@ MigrationBackup/
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
 /hand-pose/multi-hand-draw/v2_training/train_set1
+/hand-pose/multi-hand-draw/Train.Hand.Pose/Train.Hand.Pose/wwwroot/train_set1

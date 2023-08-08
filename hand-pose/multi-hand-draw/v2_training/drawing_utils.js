@@ -121,20 +121,21 @@
                     g.arc(f.x * d.width, f.y * d.height, y(b.radius, { index: e, from: f }), 0, 2 * Math.PI);
                     a.fill(g);
                     a.stroke(g);
-                    // const colour = "#0000000";
-                    // const text = `${JSON.stringify(f)}`
-                    // a.beginPath();
-                    // a.font = '12px Arial';
-                    // a.strokeStyle = colour;
-                    // a.lineWidth = 2;
-                    // a.strokeRect(f.x * d.width, f.y * d.height, 100, 50);
-                    // a.fillStyle = colour;
-                    // const textSize = a.measureText(text).width;
-                    // a.rect(f.x * d.width + 1, f.y * d.height - 20, textSize + 12, 20);
-                    // a.fill();
-                    // a.fillStyle = 'white';
-                    // a.fillText(text, f.x * d.width + 5, f.y * d.height - 5);
-                    // a.closePath();
+                    const colour = "#0000000";
+                    //const text = `${JSON.stringify(f)}`
+                    const text = `${e}`
+                    a.beginPath();
+                    a.font = '12px Arial';
+                    a.strokeStyle = colour;
+                    a.lineWidth = 2;
+                    //a.strokeRect(f.x * d.width, f.y * d.height, 50, 20);
+                    //a.fillStyle = colour;
+                    const textSize = a.measureText(text).width;
+                    //a.rect(f.x * d.width + 1, f.y * d.height - 20, textSize + 12, 20);
+                    //a.fill();
+                    a.fillStyle = 'white';
+                    a.fillText(text, f.x * d.width + 5, f.y * d.height - 5);
+                    a.closePath();
                     ++e;
                 }
             a.restore();

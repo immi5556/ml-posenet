@@ -20,6 +20,8 @@
     <script src="./drawing_utils.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4/hands.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/ark-js-util@1.1.6/ark-util.js"></script>
+    <script src="https://code.jquery.com/jquery-3.7.0.min.js"
+        integrity="sha256-2Pmvv0kuTBOenSvLm6bvfBSSHrUJ+3A7x6P5Ebd07/g=" crossorigin="anonymous"></script>
 
     <style>
         .square-box {
@@ -180,12 +182,40 @@
             font-size: 24px;
             position: absolute;
         }
+
+        .mover {
+            width: 50px;
+            height: 50px;
+            position: absolute;
+            left: var(--mouse-x);
+            top: var(--mouse-y);
+            z-index: 55;
+        }
+
+        html,
+        body,
+        button {
+            cursor: none;
+        }
     </style>
 </head>
 
 <body>
 
     <body>
+        <!-- https://codepen.io/chriscoyier/pen/XWrKNdE -->
+        <div class="mover">
+            <svg width="24" height="24" viewBox="0 0 24 24">
+                <path
+                    d="M12,11.5A2.5,2.5 0 0,1 9.5,9A2.5,2.5 0 0,1 12,6.5A2.5,2.5 0 0,1 14.5,9A2.5,2.5 0 0,1 12,11.5M12,2A7,7 0 0,0 5,9C5,14.25 12,22 12,22C12,22 19,14.25 19,9A7,7 0 0,0 12 ,2Z">
+                </path>
+            </svg>
+        </div>
+
+        <div style="position: absolute;z-index: 10;">
+            <button id="elog">Toggle Log</button>
+            <div id="eellog" style="overflow: auto; height: 600px;"></div>
+        </div>
 
         <div class="container">
             <video class="input_video"></video>
@@ -218,14 +248,51 @@
             </div>
         </div>
     </body>
-    <script src=""></script>
+    <script>
+        let root = document.documentElement;
+
+        root.addEventListener("mousemove", e => {
+            root.style.setProperty('--mouse-x', e.clientX + "px");
+            root.style.setProperty('--mouse-y', e.clientY + "px");
+        });
+        var mover = document.querySelector(".mover");
+        function updateMouse(x, y) {
+            console.log('updateMouse', x, y)
+            mover.style.transform = `translate(${x}px, ${y}px)`;
+
+        }
+        $(document).on("click", ".mover", (evt) => {
+            var x = e.clientX;
+            var y = e.clientY;
+            updateMouse(x, y);
+            lastMove = Date.now();
+            const targetButton = document.elementFromPoint(x, y).click();
+            targetButton.click();
+            console.log('mover clicked', evt)
+        });
+        function onMouseMove(e) {
+            x = e.clientX;
+            y = e.clientY;
+            updateMouse(x, y);
+            lastMove = Date.now();
+        }
+        window.addEventListener('mousemove', onMouseMove);
+    </script>
     <script type="module">
         import DeviceDetector from "https://cdn.skypack.dev/device-detector-js@2.2.10";
         const mpHands = window;
         const drawingUtils = window;
         const controls = window;
         const controls3d = window;
-        let freeze = false;
+        let showgrid = false;
+        if (showgrid) document.querySelector(".square-box").style.display = '';
+        var elogbtn = document.getElementById("elog");
+        var elog = document.getElementById("eellog");
+        let enable_log = false;
+        elogbtn.addEventListener("click", (evt) => {
+            enable_log = !enable_log;
+            console.log(enable_log);
+        })
         // Usage: testSupport({client?: string, os?: string}[])
         // Client and os are regular expressions.
         // See: https://cdn.jsdelivr.net/npm/device-detector-js@2.2.10/README.md for
@@ -297,6 +364,13 @@
             link.delete;
             util.download.json(landmarks, `${ts}.json`);
         }
+        function calculateDistance(p1, p2) {
+            var a = p2.x - p1.x;
+            var b = p2.y - p1.y;
+            var c = p2.z - p1.z;
+
+            return Math.hypot(a, b, c);
+        }
         function onResults(results) {
             // Hide the spinner.
             document.body.classList.add('loaded');
@@ -321,31 +395,36 @@
                             return drawingUtils.lerp(data.from.z, -0.15, .1, 10, 1);
                         }
                     });
-                    downloadImg(landmarks);
+                    if (enable_log) {
+                        //console.log('0 - 8 (pointer-tip)', calculateDistance(landmarks[0], landmarks[8]))
+                        //elog.append(util.textToDom(`<p>0 - 8 (pointer-tip) ${calculateDistance(landmarks[0], landmarks[8])}</p>`));
+                        updateMouse(landmarks[8].x * canvasElement.width, landmarks[8].y * canvasElement.height)
+                    }
+                    //downloadImg({ classification: classification, landmarks: landmarks });
                 }
             }
             canvasCtx.restore();
-            // if (results.multiHandWorldLandmarks) {
-            //     // We only get to call updateLandmarks once, so we need to cook the data to
-            //     // fit. The landmarks just merge, but the connections need to be offset.
-            //     const landmarks = results.multiHandWorldLandmarks.reduce((prev, current) => [...prev, ...current], []);
-            //     const colors = [];
-            //     let connections = [];
-            //     for (let loop = 0; loop < results.multiHandWorldLandmarks.length; ++loop) {
-            //         const offset = loop * mpHands.HAND_CONNECTIONS.length;
-            //         const offsetConnections = mpHands.HAND_CONNECTIONS.map((connection) => [connection[0] + offset, connection[1] + offset]);
-            //         connections = connections.concat(offsetConnections);
-            //         const classification = results.multiHandedness[loop];
-            //         colors.push({
-            //             list: offsetConnections.map((unused, i) => i + offset),
-            //             color: classification.label,
-            //         });
-            //     }
-            //     grid.updateLandmarks(landmarks, connections, colors);
-            // }
-            // else {
-            //     grid.updateLandmarks([]);
-            // }
+            if (showgrid && results.multiHandWorldLandmarks) {
+                // We only get to call updateLandmarks once, so we need to cook the data to
+                // fit. The landmarks just merge, but the connections need to be offset.
+                const landmarks = results.multiHandWorldLandmarks.reduce((prev, current) => [...prev, ...current], []);
+                const colors = [];
+                let connections = [];
+                for (let loop = 0; loop < results.multiHandWorldLandmarks.length; ++loop) {
+                    const offset = loop * mpHands.HAND_CONNECTIONS.length;
+                    const offsetConnections = mpHands.HAND_CONNECTIONS.map((connection) => [connection[0] + offset, connection[1] + offset]);
+                    connections = connections.concat(offsetConnections);
+                    const classification = results.multiHandedness[loop];
+                    colors.push({
+                        list: offsetConnections.map((unused, i) => i + offset),
+                        color: classification.label,
+                    });
+                }
+                grid.updateLandmarks(landmarks, connections, colors);
+            }
+            else {
+                grid.updateLandmarks([]);
+            }
         }
         const hands = new mpHands.Hands(config);
         hands.onResults(onResults);
@@ -354,9 +433,9 @@
         new controls
             .ControlPanel(controlsElement, {
                 selfieMode: true,
-                maxNumHands: 2,
+                maxNumHands: 1,
                 modelComplexity: 1,
-                minDetectionConfidence: 0.5,
+                minDetectionConfidence: 0.6,
                 minTrackingConfidence: 0.5
             })
             .add([
