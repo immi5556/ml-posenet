@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Image Editor : Immanuel (Developer)</title>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+    <meta name="description"
+        content="Immanuel developer, Personal website, works, open source contributor, image editor" />
+    <meta name="keywords"
+        content="Immanuel Raj, developer, programmer, c#, javascript, key value pair store, open source contributor, video formatter, image editor" />
+    <meta name="robots" content="index, follow" />
+    <meta name="distribution" content="Global" />
+    <meta name="rating" content="General" />
+    <meta name="identifier-url" content="https://www.immanuel.co" />
+    <meta name="Language" content="en, en-us, en-gb, en-bz, en-za" />
+    <meta name="viewport" content="initial-scale = 1.0,maximum-scale = 1.0" />
+    <link rel="shortcut icon" type="image/png" href="https://immanuel.co/favicon.ico" />
+</head>
+
+<body>
+    <h1>Compress and Resize an Image</h1>
+    <p>
+        Upload an image and compress it or use the following demo image
+    </p>
+    <input id="upload" type="file" accept="image/*" />
+    <div>
+        <b>Original Size:</b> <span id="orig-size"></span> <br />
+        <b>Original Width:</b> <span id="orig-width"></span> <br />
+        <b>Original Height:</b> <span id="orig-hgt"></span>
+    </div>
+    <div>
+        <h2>Original Image</h2>
+        <img style="margin-top: 5px;" id="originalImage" src="demo.jpg" crossorigin="anonymous" />
+    </div>
+    <div style="margin-top: 5px;">
+        <span>Resizing: </span>
+        <input type="range" min="1" max="100" value="80" id="resizingRange" />
+    </div>
+    <div style="margin-top: 5px; margin-left: 8px;">
+        <span>Quality: </span>
+        <input type="range" min="1" max="100" value="80" id="qualityRange" />
+    </div>
+    <h2>Compressed Image</h2>
+    <div>
+        <b>Size:</b> <span id="size"></span><br />
+        <b>Width:</b> <span id="width"></span> <br />
+        <b>Height:</b> <span id="hgt"></span>
+    </div>
+    <img id="compressedImage" />
+    <script src="index.js"></script>
+</body>
+
+</html>

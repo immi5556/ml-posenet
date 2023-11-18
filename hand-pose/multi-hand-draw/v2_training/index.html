@@ -1,0 +1,494 @@
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <link rel="icon" href="favicon.ico">
+    <link rel="stylesheet" type="text/css"
+        href="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils_3d@0.3/control_utils_3d.css"
+        crossorigin="anonymous">
+    <link rel="stylesheet" type="text/css"
+        href="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils@0.6/control_utils.css" crossorigin="anonymous">
+    <!-- <link rel="stylesheet" type="text/css" href="demo.css" crossorigin="anonymous"> -->
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils@0.3/camera_utils.js"
+        crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils@0.6/control_utils.js"
+        crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils_3d@0.3/control_utils_3d.js"
+        crossorigin="anonymous"></script>
+    <!-- <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils@0.3/drawing_utils.js"
+        crossorigin="anonymous"></script> -->
+    <script src="./drawing_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4/hands.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/ark-js-util@1.1.6/ark-util.js"></script>
+    <script src="https://code.jquery.com/jquery-3.7.0.min.js"
+        integrity="sha256-2Pmvv0kuTBOenSvLm6bvfBSSHrUJ+3A7x6P5Ebd07/g=" crossorigin="anonymous"></script>
+
+    <style>
+        .square-box {
+            width: 33%;
+            height: 0;
+            padding-top: 33%;
+            position: absolute;
+            right: 20px;
+            top: 20px;
+        }
+
+        .landmark-grid-container {
+            height: 100%;
+            width: 100%;
+            position: absolute;
+            top: 0;
+            left: 0;
+            background-color: #99999999;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        .abs {
+            position: absolute;
+        }
+
+        a {
+            color: white;
+            text-decoration: none;
+        }
+
+        a:hover {
+            color: lightblue;
+        }
+
+        body {
+            bottom: 0;
+            font-family: "Titillium Web", sans-serif;
+            color: white;
+            left: 0;
+            margin: 0;
+            position: absolute;
+            right: 0;
+            top: 0;
+            transform-origin: 0px 0px;
+            overflow: hidden;
+        }
+
+        .container {
+            position: absolute;
+            background-color: #596e73;
+            width: 100%;
+            max-height: 100%;
+        }
+
+        .input_video {
+            display: none;
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+        }
+
+        .input_video.selfie {
+            transform: scale(-1, 1);
+        }
+
+        .input_image {
+            position: absolute;
+        }
+
+        .canvas-container {
+            display: flex;
+            height: 100%;
+            width: 100%;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .output_canvas {
+            width: 100%;
+            display: block;
+            position: relative;
+            left: 0;
+            top: 0;
+        }
+
+        .logo {
+            bottom: 10px;
+            right: 20px;
+        }
+
+        .logo .title {
+            color: white;
+            font-size: 28px;
+        }
+
+        .logo .subtitle {
+            position: relative;
+            color: white;
+            font-size: 10px;
+            left: -30px;
+            top: 20px;
+        }
+
+        .control-panel {
+            position: absolute;
+            left: 10px;
+            top: 10px;
+        }
+
+        .loading {
+            display: flex;
+            position: absolute;
+            top: 0;
+            right: 0;
+            bottom: 0;
+            left: 0;
+            align-items: center;
+            backface-visibility: hidden;
+            justify-content: center;
+            opacity: 1;
+            transition: opacity 1s;
+        }
+
+        .loading .message {
+            font-size: x-large;
+        }
+
+        .loading .spinner {
+            position: absolute;
+            width: 120px;
+            height: 120px;
+            animation: spin 1s linear infinite;
+            border: 32px solid #bebebe;
+            border-top: 32px solid #3498db;
+            border-radius: 50%;
+        }
+
+        .loaded .loading {
+            opacity: 0;
+        }
+
+        .shoutout {
+            left: 0;
+            right: 0;
+            bottom: 40px;
+            text-align: center;
+            font-size: 24px;
+            position: absolute;
+        }
+
+        .mover {
+            width: 50px;
+            height: 50px;
+            position: absolute;
+            left: var(--mouse-x);
+            top: var(--mouse-y);
+            z-index: 55;
+        }
+
+        html,
+        body,
+        button {
+            cursor: none;
+        }
+    </style>
+</head>
+
+<body>
+
+    <body>
+        <!-- https://codepen.io/chriscoyier/pen/XWrKNdE -->
+        <div class="mover">
+            <svg width="24" height="24" viewBox="0 0 24 24">
+                <path
+                    d="M12,11.5A2.5,2.5 0 0,1 9.5,9A2.5,2.5 0 0,1 12,6.5A2.5,2.5 0 0,1 14.5,9A2.5,2.5 0 0,1 12,11.5M12,2A7,7 0 0,0 5,9C5,14.25 12,22 12,22C12,22 19,14.25 19,9A7,7 0 0,0 12 ,2Z">
+                </path>
+            </svg>
+        </div>
+
+        <div style="position: absolute;z-index: 10;">
+            <button id="elog">Toggle Log</button>
+            <div id="eellog" style="overflow: auto; height: 600px;"></div>
+        </div>
+
+        <div class="container">
+            <video class="input_video"></video>
+            <canvas class="output_canvas" width="1280px" height="720px"></canvas>
+            <div class="loading">
+                <div class="spinner"></div>
+                <div class="message">
+                    Loading
+                </div>
+            </div>
+            <a class="abs logo" href="http://www.mediapipe.dev" target="_blank" style="display:none;">
+                <div style="display: flex;align-items: center;bottom: 0;right: 10px;">
+                    <img class="logo" src="logo_white.png" alt="" style="
+                height: 50px;">
+                    <span class="title">MediaPipe</span>
+                </div>
+            </a>
+            <div class="shoutout" style="display: none;">
+                <div>
+                    <a href="https://solutions.mediapipe.dev/pose">
+                        Click here for more info
+                    </a>
+                </div>
+            </div>
+        </div>
+        <div class="control-panel" style="display: none;">
+        </div>
+        <div class='square-box' style="display:none;">
+            <div class="landmark-grid-container">
+            </div>
+        </div>
+    </body>
+    <script>
+        let root = document.documentElement;
+
+        root.addEventListener("mousemove", e => {
+            root.style.setProperty('--mouse-x', e.clientX + "px");
+            root.style.setProperty('--mouse-y', e.clientY + "px");
+        });
+        var mover = document.querySelector(".mover");
+        function updateMouse(x, y) {
+            console.log('updateMouse', x, y)
+            mover.style.transform = `translate(${x}px, ${y}px)`;
+
+        }
+        $(document).on("click", ".mover", (evt) => {
+            var x = e.clientX;
+            var y = e.clientY;
+            updateMouse(x, y);
+            lastMove = Date.now();
+            const targetButton = document.elementFromPoint(x, y).click();
+            targetButton.click();
+            console.log('mover clicked', evt)
+        });
+        function onMouseMove(e) {
+            x = e.clientX;
+            y = e.clientY;
+            updateMouse(x, y);
+            lastMove = Date.now();
+        }
+        window.addEventListener('mousemove', onMouseMove);
+    </script>
+    <script type="module">
+        import DeviceDetector from "https://cdn.skypack.dev/device-detector-js@2.2.10";
+        const mpHands = window;
+        const drawingUtils = window;
+        const controls = window;
+        const controls3d = window;
+        let showgrid = false;
+        if (showgrid) document.querySelector(".square-box").style.display = '';
+        var elogbtn = document.getElementById("elog");
+        var elog = document.getElementById("eellog");
+        let enable_log = false;
+        elogbtn.addEventListener("click", (evt) => {
+            enable_log = !enable_log;
+            console.log(enable_log);
+        })
+        // Usage: testSupport({client?: string, os?: string}[])
+        // Client and os are regular expressions.
+        // See: https://cdn.jsdelivr.net/npm/device-detector-js@2.2.10/README.md for
+        // legal values for client and os
+        testSupport([
+            { client: 'Chrome' },
+        ]);
+        function testSupport(supportedDevices) {
+            const deviceDetector = new DeviceDetector();
+            const detectedDevice = deviceDetector.parse(navigator.userAgent);
+            let isSupported = false;
+            for (const device of supportedDevices) {
+                if (device.client !== undefined) {
+                    const re = new RegExp(`^${device.client}$`);
+                    if (!re.test(detectedDevice.client.name)) {
+                        continue;
+                    }
+                }
+                if (device.os !== undefined) {
+                    const re = new RegExp(`^${device.os}$`);
+                    if (!re.test(detectedDevice.os.name)) {
+                        continue;
+                    }
+                }
+                isSupported = true;
+                break;
+            }
+            if (!isSupported) {
+                alert(`This demo, running on ${detectedDevice.client.name}/${detectedDevice.os.name}, ` +
+                    `is not well supported at this time, continue at your own risk.`);
+            }
+        }
+        // Our input frames will come from here.
+        const videoElement = document.getElementsByClassName('input_video')[0];
+        const canvasElement = document.getElementsByClassName('output_canvas')[0];
+        const controlsElement = document.getElementsByClassName('control-panel')[0];
+        const canvasCtx = canvasElement.getContext('2d');
+        const config = {
+            locateFile: (file) => {
+                return `https://cdn.jsdelivr.net/npm/@mediapipe/hands@${mpHands.VERSION}/${file}`;
+            }
+        };
+        // We'll add this to our control panel later, but we'll save it here so we can
+        // call tick() each time the graph runs.
+        const fpsControl = new controls.FPS();
+        // Optimization: Turn off animated spinner after its hiding animation is done.
+        const spinner = document.querySelector('.loading');
+        spinner.ontransitionend = () => {
+            spinner.style.display = 'none';
+        };
+        const landmarkContainer = document.getElementsByClassName('landmark-grid-container')[0];
+        const grid = new controls3d.LandmarkGrid(landmarkContainer, {
+            connectionColor: 0xCCCCCC,
+            definedColors: [{ name: 'Left', value: 0xffa500 }, { name: 'Right', value: 0x00ffff }],
+            range: 0.2,
+            fitToGrid: false,
+            labelSuffix: 'm',
+            landmarkSize: 2,
+            numCellsPerAxis: 4,
+            showHidden: false,
+            centered: false,
+        });
+        function downloadImg(landmarks) {
+            const link = document.createElement('a');
+            var ts = util.dater.getUniqueTimestamp();
+            link.download = `${ts}.jpg`;
+            link.href = canvasElement.toDataURL();
+            link.click();
+            link.delete;
+            util.download.json(landmarks, `${ts}.json`);
+        }
+        function calculateDistance(p1, p2) {
+            var a = p2.x - p1.x;
+            var b = p2.y - p1.y;
+            var c = p2.z - p1.z;
+
+            return Math.hypot(a, b, c);
+        }
+        function onResults(results) {
+            // Hide the spinner.
+            document.body.classList.add('loaded');
+            // Update the frame rate.
+            fpsControl.tick();
+            // Draw the overlays.
+            canvasCtx.save();
+            canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+            canvasCtx.drawImage(results.image, 0, 0, canvasElement.width, canvasElement.height);
+            if (results.multiHandLandmarks && results.multiHandedness) {
+                for (let index = 0; index < results.multiHandLandmarks.length; index++) {
+                    const classification = results.multiHandedness[index];
+                    //console.log('classification', classification);
+                    const isRightHand = classification.label === 'Right';
+                    const landmarks = results.multiHandLandmarks[index];
+                    //console.log('landmarks', landmarks);
+                    drawingUtils.drawConnectors(canvasCtx, landmarks, mpHands.HAND_CONNECTIONS, { color: isRightHand ? '#00FF00' : '#FF0000' });
+                    drawingUtils.drawLandmarks(canvasCtx, landmarks, {
+                        color: isRightHand ? '#00FF00' : '#FF0000',
+                        fillColor: isRightHand ? '#FF0000' : '#00FF00',
+                        radius: (data) => {
+                            return drawingUtils.lerp(data.from.z, -0.15, .1, 10, 1);
+                        }
+                    });
+                    if (enable_log) {
+                        //console.log('0 - 8 (pointer-tip)', calculateDistance(landmarks[0], landmarks[8]))
+                        //elog.append(util.textToDom(`<p>0 - 8 (pointer-tip) ${calculateDistance(landmarks[0], landmarks[8])}</p>`));
+                        updateMouse(landmarks[8].x * canvasElement.width, landmarks[8].y * canvasElement.height)
+                    }
+                    //downloadImg({ classification: classification, landmarks: landmarks });
+                }
+            }
+            canvasCtx.restore();
+            if (showgrid && results.multiHandWorldLandmarks) {
+                // We only get to call updateLandmarks once, so we need to cook the data to
+                // fit. The landmarks just merge, but the connections need to be offset.
+                const landmarks = results.multiHandWorldLandmarks.reduce((prev, current) => [...prev, ...current], []);
+                const colors = [];
+                let connections = [];
+                for (let loop = 0; loop < results.multiHandWorldLandmarks.length; ++loop) {
+                    const offset = loop * mpHands.HAND_CONNECTIONS.length;
+                    const offsetConnections = mpHands.HAND_CONNECTIONS.map((connection) => [connection[0] + offset, connection[1] + offset]);
+                    connections = connections.concat(offsetConnections);
+                    const classification = results.multiHandedness[loop];
+                    colors.push({
+                        list: offsetConnections.map((unused, i) => i + offset),
+                        color: classification.label,
+                    });
+                }
+                grid.updateLandmarks(landmarks, connections, colors);
+            }
+            else {
+                grid.updateLandmarks([]);
+            }
+        }
+        const hands = new mpHands.Hands(config);
+        hands.onResults(onResults);
+        // Present a control panel through which the user can manipulate the solution
+        // options.
+        new controls
+            .ControlPanel(controlsElement, {
+                selfieMode: true,
+                maxNumHands: 1,
+                modelComplexity: 1,
+                minDetectionConfidence: 0.6,
+                minTrackingConfidence: 0.5
+            })
+            .add([
+                new controls.StaticText({ title: 'MediaPipe Hands' }),
+                fpsControl,
+                new controls.Toggle({ title: 'Selfie Mode', field: 'selfieMode' }),
+                new controls.SourcePicker({
+                    onFrame: async (input, size) => {
+                        const aspect = size.height / size.width;
+                        let width, height;
+                        if (window.innerWidth > window.innerHeight) {
+                            height = window.innerHeight;
+                            width = height / aspect;
+                        }
+                        else {
+                            width = window.innerWidth;
+                            height = width * aspect;
+                        }
+                        canvasElement.width = width;
+                        canvasElement.height = height;
+                        await hands.send({ image: input });
+                    },
+                }),
+                new controls.Slider({
+                    title: 'Max Number of Hands',
+                    field: 'maxNumHands',
+                    range: [1, 4],
+                    step: 1
+                }),
+                new controls.Slider({
+                    title: 'Model Complexity',
+                    field: 'modelComplexity',
+                    discrete: ['Lite', 'Full'],
+                }),
+                new controls.Slider({
+                    title: 'Min Detection Confidence',
+                    field: 'minDetectionConfidence',
+                    range: [0, 1],
+                    step: 0.01
+                }),
+                new controls.Slider({
+                    title: 'Min Tracking Confidence',
+                    field: 'minTrackingConfidence',
+                    range: [0, 1],
+                    step: 0.01
+                }),
+            ])
+            .on(x => {
+                const options = x;
+                videoElement.classList.toggle('selfie', options.selfieMode);
+                hands.setOptions(options);
+            });
+
+    </script>
+
+</html>
