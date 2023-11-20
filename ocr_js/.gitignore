@@ -3,6 +3,9 @@
 .vs/
 bin
 obj
+img_upl/
+tessdata/
+publishProfiles/
 
 # dependencies
 /node_modules

@@ -1,0 +1,15 @@
+﻿
+list of ocr hosting details 
+
+https://ocr.immanuel.co/tfjs-ocr
+	src -> \git_hub\immi5556\ml-posenet\ocr_js\
+
+https://ocr.immanuel.co/jscanify
+	src -> \git_hub\immi5556\ark-jscanify\sample
+
+https://ocr.immanuel.co/
+	SRC - \git_hub\immi5556\ocr_js
+
+	.net implementaion FORK OF 'https://github.com/immi5556/tesseract/'
+	tess data
+	https://github.com/tesseract-ocr/tessdata
