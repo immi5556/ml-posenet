@@ -19,7 +19,6 @@
     <link rel="shortcut icon" type="image/png" href="https://immanuel.co/favicon.ico" />
     <style>
         body {
-            background: rgb(243, 244, 245);
             height: 100%;
             color: rgb(100, 108, 127);
             line-height: 1.4rem;
@@ -45,8 +44,10 @@
     </style>
 </head>
 <body>
-    <br />
-    <h1>Upload Images And View the OCR Extract Info</h1>
+    <section class="page-content" style="background-image: url(/img/image-optical.png);background-size: cover;background-position: 0px -150px;">
+        <h1 class="page-title">OCR - Extract Text from Image</h1>
+        <p>Click below & upload an image to see the OCR extracted text values with indexed and highlighted</p>
+    </section>
     <SECTION>
         <DIV id="dropzone">
             <FORM class="dropzone needsclick" id="demo-upload" action="/extract">
@@ -188,7 +189,7 @@
             }
         }
 
-        var temp_rest = (id, opt) => `<img id='${id}' style='max-width: 90%;' src=${opt.url} /> <br />
+        var temp_rest = (id, opt) => `<img id='${id}' style='width: 100%;' src=${opt.url} /> <br />
                 <table class='${id}'>
                     <thead>
                         <tr>
@@ -197,7 +198,7 @@
                             <th>Confident Score</th>
                         </tr>
                     </thead>
-                    <tbody>
+                    <tbody style='background: white;'>
                         ${temp_th(opt)}
                     <tbody>
                 </table>`;

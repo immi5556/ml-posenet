@@ -1,5 +1,67 @@
-﻿body {
+﻿
+/*content page*/
+@font-face {
+    font-family: GloriaHallelujah;
+    src: url(/font/GloriaHallelujah-Regular.ttf);
+}
+
+.page-header {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    position: fixed;
+    top: 0;
+    right: 0;
+    left: 0;
+    overflow: visible;
+    padding: 1rem;
+    z-index: 200;
+}
+
+.page-content {
+    font-family: GloriaHallelujah;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+    text-align: center;
+    color: white;
+}
+
+.page-tagline {
+    font-size: 0.75rem;
+    font-weight: 700;
+    z-index: 100;
+}
+
+    .page-tagline a {
+        color: #123965;
+        text-decoration: none;
+    }
+
+.page-title {
+    margin-bottom: 1.5rem;
+    font-family: GloriaHallelujah;
+    font-size: 2rem;
+    line-height: 1.2;
+}
+
+@media (min-width: 450px) {
+    .page-title {
+        font-size: 3rem;
+    }
+}
+
+
+
+
+/*table*/
+
+body {
     padding: 5%;
+    background-image: url(https://s3-us-west-2.amazonaws.com/s.cdpn.io/225363/ales-krivec-38565-unsplash.jpg);
+    background-size: cover;
 }
 
 table {
@@ -14,7 +76,7 @@ table {
         padding: 0.5em 1em;
         border-bottom: 1px solid #ccc;
         border-right: 1px solid #ccc;
-        white-space: pre;
+        /*white-space: pre;*/
     }
 
     table thead th,
@@ -37,3 +99,5 @@ table {
         color: #767676;
         padding-bottom: 0;
     }
+
+
