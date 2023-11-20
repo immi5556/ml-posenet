@@ -123,7 +123,7 @@
                     console.log(result);
                     var tbl_dom = document.querySelector(".table-rest-contain");
                     if (result.errored) {
-                        tbl_dom.innerHTML = tbl_dom.innerHTML + `<div>Errored: ${result.message}</div>`;
+                        tbl_dom.innerHTML = tbl_dom.innerHTML + `<div id='${file.name}'>Errored: ${result.message}</div>`;
                     } else {
                         var tgg = temp_rest(file.name, result.content);
                         console.log(tgg);
@@ -132,7 +132,12 @@
                 })
                 .catch(e => console.log(e));
         });
-
+        dropzone.on("removedfile", file => {
+            var elm_i = document.getElementById(file.name).remove();
+            if (elm_i) elm_i.remove();
+            var elm_c = document.getElementsByClassName(file.name);
+            if (elm_c && elm_c[0]) elm_c[0].remove();
+        });
         // Now fake the file upload, since GitHub does not handle file uploads
         // and returns a 404
 
@@ -174,7 +179,7 @@
         }
 
         var temp_rest = (id, opt) => `<img id='${id}' style='max-width: 90%;' src=${opt.url} /> <br />
-                <table>
+                <table class='${id}'>
                     <thead>
                         <tr>
                             <td></td>

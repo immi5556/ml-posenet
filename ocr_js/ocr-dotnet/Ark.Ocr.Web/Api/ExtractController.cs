@@ -17,21 +17,28 @@ namespace Ark.Ocr.Web.Api
         [Route("ark/extract")]
         public async Task<dynamic> extractdata()
         {
-            if (Request.Form.Files.Count == 0)
+            try
+            {
+                if (Request.Form.Files.Count == 0)
+                {
+                    throw new ApplicationException("no file uploaded.");
+                }
+                var msgs = WordTest(Request.Form.Files[0]);
+                return new
+                {
+                    errored = false,
+                    message = "",
+                    content = msgs
+                };
+            }
+            catch(Exception ex)
             {
                 return new
                 {
                     errored = true,
-                    message = "no file uploaded"
+                    message = ex.Message
                 };
             }
-            var msgs = WordTest(Request.Form.Files[0]);
-            return new
-            {
-                errored = false,
-                message = "",
-                content = msgs
-            };
         }
         //[HttpPost]
         //[Route("extract/{language}")]

@@ -6,6 +6,7 @@ obj
 img_upl/
 tessdata/
 publishProfiles/
+img_data/
 
 # dependencies
 /node_modules
