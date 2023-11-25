@@ -19,11 +19,9 @@ namespace Ark.Ocr.Web.Api
         {
             try
             {
-                if (Request.Form.Files.Count == 0)
-                {
-                    throw new ApplicationException("no file uploaded.");
-                }
-                var msgs = WordTest(Request.Form.Files[0]);
+                if (Request.Form.Files.Count == 0) throw new ApplicationException("no file uploaded.");
+                string lang = !string.IsNullOrEmpty(Request.Form["lang"][0]) ? Request.Form["lang"][0] : "tam";
+                var msgs = WordTest(Request.Form.Files[0], lang);
                 return new
                 {
                     errored = false,
@@ -31,7 +29,7 @@ namespace Ark.Ocr.Web.Api
                     content = msgs
                 };
             }
-            catch(Exception ex)
+            catch (Exception ex)
             {
                 return new
                 {
@@ -46,8 +44,7 @@ namespace Ark.Ocr.Web.Api
         //{
 
         //}
-
-        public dynamic WordTest(IFormFile file)
+        public dynamic WordTest(IFormFile file, string lang)
         {
             List<Pix> pics = new List<Pix>();
             List<string> texts = new List<string>();
@@ -61,8 +58,8 @@ namespace Ark.Ocr.Web.Api
             stream.Read(array, 0, (int)stream.Length);
             var uq_fn = $"{System.IO.Path.GetFileNameWithoutExtension(file.FileName)}_{DateTime.Now.ToString("yyyMMddhhmmssfff")}{System.IO.Path.GetExtension(file.FileName)}";
             //var src_img = @"./img_data/ch1.png";
-            //using (var engine = new TesseractEngine(@"./tessdata/tam", "tam", EngineMode.Default))
-            using (var engine = new TesseractEngine(@"./tessdata/eng", "eng", EngineMode.Default))
+            using (var engine = new TesseractEngine(@"./tessdata/tam", "tam", EngineMode.Default))
+            //using (var engine = new TesseractEngine(@"./tessdata/eng", "eng", EngineMode.Default))
             {
                 //using (var img = Pix.LoadFromFile(src_img))
                 using (var img = Pix.LoadFromMemory(array))
