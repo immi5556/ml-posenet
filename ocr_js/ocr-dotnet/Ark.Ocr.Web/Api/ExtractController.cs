@@ -52,6 +52,7 @@ namespace Ark.Ocr.Web.Api
             List<Rect> bb = new List<Rect>();
             List<float> confidence = new List<float>();
             List<float> o_confidence = new List<float>();
+            List<dynamic> ooo_output = new List<dynamic>();
             var lvl = PageIteratorLevel.Word;
             var stream = file.OpenReadStream();
             var array = new byte[stream.Length];
@@ -121,9 +122,16 @@ namespace Ark.Ocr.Web.Api
                         graphics.DrawString((++i1).ToString(), font, Brushes.Black, bb[tt].X1 + 15, bb[tt].Y1 + 15);
                         o_texts.Add(texts[tt]);
                         o_confidence.Add(confidence[tt]);
+                        ooo_output.Add(new
+                        {
+                            idx = i1,
+                            text = texts[tt],
+                            confidence = confidence[tt]
+                        });
                     }
                 }
                 image.Save(System.IO.Path.Combine(_env.WebRootPath, "img_upl", uq_fn));
+                System.IO.File.WriteAllText(System.IO.Path.Combine(_env.WebRootPath, "img_upl", System.IO.Path.GetFileNameWithoutExtension(uq_fn) + ".json"), System.Text.Json.JsonSerializer.Serialize(ooo_output));
             }
             return new
             {
