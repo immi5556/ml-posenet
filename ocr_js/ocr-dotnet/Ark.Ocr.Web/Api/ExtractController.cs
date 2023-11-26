@@ -58,7 +58,7 @@ namespace Ark.Ocr.Web.Api
             stream.Read(array, 0, (int)stream.Length);
             var uq_fn = $"{System.IO.Path.GetFileNameWithoutExtension(file.FileName)}_{DateTime.Now.ToString("yyyMMddhhmmssfff")}{System.IO.Path.GetExtension(file.FileName)}";
             //var src_img = @"./img_data/ch1.png";
-            using (var engine = new TesseractEngine(@"./tessdata/tam", "tam", EngineMode.Default))
+            using (var engine = new TesseractEngine($@"./tessdata/{lang}", lang, EngineMode.TesseractAndLstm))
             //using (var engine = new TesseractEngine(@"./tessdata/eng", "eng", EngineMode.Default))
             {
                 //using (var img = Pix.LoadFromFile(src_img))
