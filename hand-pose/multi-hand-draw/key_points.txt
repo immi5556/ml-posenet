@@ -6,3 +6,6 @@ https://codepen.io/mediapipe/pen/RwGWYJw
 
 https://developers.google.com/mediapipe/solutions/vision/pose_landmarker/
 
+deployed v2_training folder to  (to test the mouse track)
+
+https://hand-pose.immanuel.co
