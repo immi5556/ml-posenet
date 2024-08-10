@@ -5,3 +5,4 @@ https://github.com/google/mediapipe/blob/master/docs/getting_started/javascript.
 https://codepen.io/mediapipe/pen/RwGWYJw
 
 https://developers.google.com/mediapipe/solutions/vision/pose_landmarker/
+
