@@ -14,3 +14,8 @@ https://hand-pose.immanuel.co
 -- updated some trial features
 
 -- grab
+
+-- to run from python
+
+> pip install simple-http-server
+> python3 -m http.server
