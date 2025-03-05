@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hand Pose Detection with MediaPipe</title>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
+    <style>
+        #custom-cursor {
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            background-color: blue;
+            border-radius: 50%;
+            pointer-events: none; /* Ensure the cursor doesn't interfere with clicks */
+            z-index: 1000;
+        }
+    </style>
+</head>
+<body>
+    <video id="webcam" autoplay playsinline></video>
+    <canvas id="output_canvas" width="1280" height="720"></canvas>
+    <div id="custom-cursor"></div>
+    <p id="gesture_output" style="position:absolute;top: 5px; left: 5px;"></p>
+    <p id="click_output" style="position:absolute;top: 5px; left: 175px;"></p>
+
+    <div id="clk-itm" style="position:absolute;top: 20px; left: 375px;width:100px;height: 50px;background-color: greenyellow;">Click Me!</div>
+    <div id="grb-itm" style="position:absolute;top: 20px; left: 575px;width:100px;height: 50px;background-color: darkturquoise;">Grab & Move Me!</div>
+
+    <script type="module">
+        const videoElement = document.getElementById('webcam');
+        const canvasElement = document.getElementById('output_canvas');
+        const canvasCtx = canvasElement.getContext('2d');
+        const customCursor = document.getElementById('custom-cursor');
+        const gestureOutput = document.getElementById('gesture_output');
+        const clickOutput = document.getElementById('click_output');
+        const movableDiv = document.getElementById('grb-itm');
+        const drawingUtils = window;
+        // Initialize MediaPipe Hands
+        const hands = new Hands({
+            locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`,
+        });
+
+        hands.setOptions({
+            maxNumHands: 2,
+            modelComplexity: 1,
+            minDetectionConfidence: 0.5,
+            minTrackingConfidence: 0.5,
+        });
+
+        hands.onResults(onResults);
+
+        // Start the webcam and process frames
+        const camera = new Camera(videoElement, {
+            onFrame: async () => {
+                await hands.send({ image: videoElement });
+            },
+            width: 1280,
+            height: 720,
+        });
+        camera.start();
+
+
+        // Process results from MediaPipe Hands
+        function onResults(results) {
+            canvasCtx.save();
+            canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+            canvasCtx.drawImage(results.image, 0, 0, canvasElement.width, canvasElement.height);
+
+            if (results.multiHandLandmarks) {
+                for (const landmarks of results.multiHandLandmarks) {
+                    drawLandmarks(landmarks);
+                    detectGrabbing(landmarks);
+                    moveCursor(landmarks);
+                    detectClick(landmarks);
+                    moveDiv(landmarks);
+                }
+            }
+            canvasCtx.restore();
+        }
+
+        // Draw hand landmarks on the canvas
+        function drawLandmarks(landmarks) {
+            drawingUtils.drawConnectors(canvasCtx, landmarks, HAND_CONNECTIONS, {
+                color: '#00FF00',
+                lineWidth: 2,
+            });
+            drawingUtils.drawLandmarks(canvasCtx, landmarks, {
+                color: '#FF0000',
+                lineWidth: 1,
+            });
+        }
+        let isGrabbing = false;
+        const grabThreshold = 0.05;
+        // Detect grabbing gesture
+        function detectGrabbing(landmarks) {
+            const thumbTip = landmarks[4]; // Thumb tip landmark
+            const indexTip = landmarks[8]; // Index finger tip landmark
+            const middleTip = landmarks[12]; // Middle finger tip landmark
+            const ringTip = landmarks[16]; // Ring finger tip landmark
+            const pinkyTip = landmarks[20]; // Pinky finger tip landmark
+
+            // Calculate distances between fingertips and palm base
+            const thumbIndexDistance = calculateDistance(thumbTip, indexTip);
+            const thumbMiddleDistance = calculateDistance(thumbTip, middleTip);
+            const thumbRingDistance = calculateDistance(thumbTip, ringTip);
+            const thumbPinkyDistance = calculateDistance(thumbTip, pinkyTip);
+
+            // Threshold for grabbing detection
+            //const grabThreshold = 0.05;
+
+            if (
+                thumbIndexDistance < grabThreshold &&
+                thumbMiddleDistance < grabThreshold &&
+                thumbRingDistance < grabThreshold &&
+                thumbPinkyDistance < grabThreshold
+            ) {
+                gestureOutput.textContent = 'Grabbing Detected!';
+                isGrabbing = true;
+            } else {
+                gestureOutput.textContent = 'No Grab';
+                isGrabbing = false;
+            }
+        }
+
+        // Move the div element when grabbing
+        function moveDiv(landmarks) {
+            if (isGrabbing) {
+                const indexTip = landmarks[8]; // Index finger tip landmark
+
+                // Convert normalized coordinates to screen coordinates
+                const x = indexTip.x * canvasElement.width;
+                const y = indexTip.y * canvasElement.height;
+
+                // Update the div position
+                movableDiv.style.left = `${x - movableDiv.offsetWidth / 2}px`;
+                movableDiv.style.top = `${y - movableDiv.offsetHeight / 2}px`;
+            }
+        }
+
+
+        // Move the custom cursor based on the index finger tip coordinates
+        function moveCursor(landmarks) {
+            const indexTip = landmarks[8]; // Index finger tip landmark
+
+            // Convert normalized coordinates to screen coordinates
+            const x = indexTip.x * canvasElement.width;
+            const y = indexTip.y * canvasElement.height;
+
+            // Update the custom cursor position
+            customCursor.style.left = `${x}px`;
+            customCursor.style.top = `${y}px`;
+        }
+
+        // Variables to track index finger depth
+        let previousZ = null;
+        const clickThreshold = 0.02; // 0.02; // Threshold for detecting a forward movement (adjust as needed)
+        // Detect index finger forward movement as a click
+        function detectClick(landmarks) {
+            const indexTip = landmarks[8]; // Index finger tip landmark
+
+            if (previousZ !== null) {
+                const deltaZ = previousZ - indexTip.z; // Change in z-coordinate
+                console.log('click delta-z', indexTip.z, deltaZ);
+                // If the finger moves forward significantly, trigger a click
+                if (deltaZ > clickThreshold) {
+                    console.log('click aceted delta-z', deltaZ);
+                    simulateClick();
+                    clickOutput.textContent = 'Click Detected!';
+                } else {
+                    clickOutput.textContent = 'No Click!';
+                }
+            }
+
+            // Update the previous z-coordinate
+            previousZ = indexTip.z;
+        }
+
+        // Simulate a click event
+        function simulateClick() {
+            const cursorX = parseFloat(customCursor.style.left);
+            const cursorY = parseFloat(customCursor.style.top);
+
+            // Create a new mouse event
+            const clickEvent = new MouseEvent('click', {
+                view: window,
+                bubbles: true,
+                cancelable: true,
+                clientX: cursorX,
+                clientY: cursorY,
+            });
+
+            // Dispatch the event at the cursor's position
+            var ele = document.elementFromPoint(cursorX, cursorY);
+            if (ele) ele.dispatchEvent(clickEvent);
+        }
+
+        // Calculate Euclidean distance between two landmarks
+        function calculateDistance(point1, point2) {
+            return Math.sqrt(
+                Math.pow(point1.x - point2.x, 2) +
+                Math.pow(point1.y - point2.y, 2) +
+                Math.pow(point1.z - point2.z, 2)
+            );
+        }
+    </script>
+    <script>
+        document.getElementById("clk-itm").addEventListener("click", ee => {
+            alert('Clicked...')
+        })
+    </script>
+</body>
+</html>

@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hand Pose Detection with MediaPipe</title>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
+    <!--<script src="./drawing_utils.js"></script>-->
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
+    <style>
+        html, body {
+            height: 100%;
+            width: 100%;
+            overflow: hidden;
+        }
+
+        #custom-cursor {
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            background-color: red;
+            border-radius: 50%;
+            pointer-events: none; /* Ensure the cursor doesn't interfere with clicks */
+            z-index: 1000;
+        }
+
+        .movable-div {
+            position: absolute;
+            width: 100px;
+            height: 100px;
+            background-color: blue;
+            border-radius: 10px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <video id="webcam" style="opacity: 0; width: 100%; height: 100%;" autoplay playsinline></video>
+    <canvas style="position:absolute;top:0px;left:0px;width:100%;height:100%;" id="output_canvas"></canvas>
+    <div id="custom-cursor"></div>
+    <div id="movable-divs-container">
+        <!-- Add multiple movable divs -->
+        <div class="movable-div" style="left: 100px; top: 100px;"></div>
+        <div class="movable-div" style="left: 300px; top: 100px;"></div>
+        <div class="movable-div" style="left: 500px; top: 100px;"></div>
+    </div>
+    <!--<p id="gesture_output"></p>-->
+    <p id="gesture_output" style="position:absolute;top: 5px; left: 5px;"></p>
+    <p id="click_output" style="position:absolute;top: 5px; left: 175px;"></p>
+
+    <script type="module">
+        const videoElement = document.getElementById('webcam');
+        const canvasElement = document.getElementById('output_canvas');
+        const canvasCtx = canvasElement.getContext('2d');
+        const customCursor = document.getElementById('custom-cursor');
+        const movableDivs = document.querySelectorAll('.movable-div');
+        const gestureOutput = document.getElementById('gesture_output');
+        const clickOutput = document.getElementById('click_output');
+        const drawingUtils = window;
+        // Initialize MediaPipe Hands
+        const hands = new Hands({
+            locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`,
+        });
+
+        hands.setOptions({
+            maxNumHands: 2,
+            modelComplexity: 1,
+            minDetectionConfidence: 0.5,
+            minTrackingConfidence: 0.5,
+        });
+
+        hands.onResults(onResults);
+
+        function init() {
+            // Start the webcam and process frames
+            const camera = new Camera(videoElement, {
+                onFrame: async () => {
+                    await hands.send({ image: videoElement });
+                },
+                width: window.innerWidth,
+                height: window.innerHeight,
+            });
+            camera.start();
+        }
+        window.addEventListener("DOMContentLoaded", ev => {
+            const aspect = window.innerWidth / window.innerHeight;
+            let width, height;
+            if (window.innerWidth > window.innerHeight) {
+                height = window.innerHeight;
+                width = height / aspect;
+            }
+            else {
+                width = window.innerWidth;
+                height = width * aspect;
+            }
+            canvasElement.width = width;
+            canvasElement.height = height;
+            init();
+        })
+        // Variables to track index finger depth and grabbing state
+        let previousZ = null;
+        const clickThreshold = 0.02; // Threshold for detecting a forward movement (adjust as needed)
+        
+
+        // Process results from MediaPipe Hands
+        function onResults(results) {
+            canvasCtx.save();
+            canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+            canvasCtx.drawImage(results.image, 0, 0, canvasElement.width, canvasElement.height);
+
+            if (results.multiHandLandmarks) {
+                for (const landmarks of results.multiHandLandmarks) {
+                    drawLandmarks(landmarks);
+                    detectGrabbing(landmarks);
+                    moveCursor(landmarks);
+                    detectClick(landmarks);
+                    moveDiv(landmarks);
+                }
+            }
+            canvasCtx.restore();
+        }
+
+        // Draw hand landmarks on the canvas
+        function drawLandmarks(landmarks) {
+            drawingUtils.drawConnectors(canvasCtx, landmarks, HAND_CONNECTIONS, {
+                color: '#00FF00',
+                lineWidth: 2,
+            });
+            drawingUtils.drawLandmarks(canvasCtx, landmarks, {
+                color: 'green',
+                lineWidth: 1,
+            });
+        }
+        let isGrabbing = false;
+        let selectedDiv = null; // Track the currently selected div
+        const grabThreshold = 0.05; // Threshold for detecting grabbing (adjust as needed)
+        const grabReleaseThreshold = 0.1; // Threshold for detecting grabbing (adjust as needed)
+        // Detect grabbing gesture
+        function detectGrabbing(landmarks) {
+            const thumbTip = landmarks[4]; // Thumb tip landmark
+            const indexTip = landmarks[8]; // Index finger tip landmark
+            const middleTip = landmarks[12]; // Middle finger tip landmark
+            const ringTip = landmarks[16]; // Ring finger tip landmark
+            const pinkyTip = landmarks[20]; // Pinky finger tip landmark
+
+            // Calculate distances between fingertips and palm base
+            const thumbIndexDistance = calculateDistance(thumbTip, indexTip);
+            const thumbMiddleDistance = calculateDistance(thumbTip, middleTip);
+            const thumbRingDistance = calculateDistance(thumbTip, ringTip);
+            const thumbPinkyDistance = calculateDistance(thumbTip, pinkyTip);
+
+            // Check if all distances are below the grab threshold
+            if (
+                thumbIndexDistance < grabThreshold &&
+                thumbMiddleDistance < grabThreshold &&
+                thumbRingDistance < grabThreshold &&
+                thumbPinkyDistance < grabThreshold
+            ) {
+                const cursorX = indexTip.x * canvasElement.width;
+                const cursorY = indexTip.y * canvasElement.height;
+                var eee = document.elementFromPoint(cursorX, cursorY);
+                if (eee.classList.contains('movable-div')) {
+                    selectedDiv = eee;
+                    console.log('right movale div selected', eee);
+                } else {
+                    console.log('incorrect movale dom selected', eee);
+                }
+                isGrabbing = true;
+                gestureOutput.textContent = 'Grabbing Detected!';
+            } else {
+                //isGrabbing = false;
+                //gestureOutput.textContent = 'No Grab';
+                //selectedDiv = null; // Deselect the div when grabbing is released
+            }
+
+            if (
+                thumbIndexDistance > grabReleaseThreshold &&
+                thumbMiddleDistance > grabReleaseThreshold &&
+                thumbRingDistance > grabReleaseThreshold &&
+                thumbPinkyDistance > grabReleaseThreshold
+            ) {
+                isGrabbing = false;
+                gestureOutput.textContent = 'Grab Released';
+                selectedDiv = null; // Deselect the div when grabbing is released
+            }
+
+        }
+
+        // Move the custom cursor based on the index finger tip coordinates
+        function moveCursor(landmarks) {
+            const indexTip = landmarks[8]; // Index finger tip landmark
+
+            // Convert normalized coordinates to screen coordinates
+            const x = indexTip.x * window.innerWidth;
+            const y = indexTip.y * window.innerHeight;
+
+            // Update the custom cursor position
+            customCursor.style.left = `${x}px`;
+            customCursor.style.top = `${y}px`;
+        }
+
+        // Detect index finger forward movement as a click
+        function detectClick(landmarks) {
+            const indexTip = landmarks[8]; // Index finger tip landmark
+
+            if (previousZ !== null) {
+                const deltaZ = previousZ - indexTip.z; // Change in z-coordinate
+
+                // If the finger moves forward significantly, trigger a click
+                if (deltaZ > clickThreshold) {
+                    simulateClick();
+                    clickOutput.textContent = 'Click Detected!';
+                } else {
+                    clickOutput.textContent = 'No Click!';
+                }
+            }
+
+            // Update the previous z-coordinate
+            previousZ = indexTip.z;
+        }
+
+        // Move the selected div when grabbing
+        function moveDiv(landmarks) {
+            if (isGrabbing) {
+                const indexTip = landmarks[8]; // Index finger tip landmark
+
+                // Convert normalized coordinates to screen coordinates
+                const cursorX = indexTip.x * window.innerWidth;
+                const cursorY = indexTip.y * window.innerHeight;
+                //selectedDiv = document.elementFromPoint(cursorX, cursorY);
+
+                // If no div is selected, find the closest one to the cursor
+                //if (!selectedDiv) {
+                //    selectedDiv = findClosestDiv(cursorX, cursorY);
+                //}
+
+                // Move the selected div
+                if (selectedDiv) {
+                    selectedDiv.style.left = `${cursorX - selectedDiv.offsetWidth / 2}px`;
+                    selectedDiv.style.top = `${cursorY - selectedDiv.offsetHeight / 2}px`;
+                }
+            }
+        }
+
+        // Find the closest div to the cursor
+        function findClosestDiv(cursorX, cursorY) {
+            let closestDiv = null;
+            let minDistance = Infinity;
+
+            movableDivs.forEach((div) => {
+                const rect = div.getBoundingClientRect();
+                const divCenterX = rect.left + rect.width / 2;
+                const divCenterY = rect.top + rect.height / 2;
+
+                // Calculate distance between cursor and div center
+                const distance = Math.sqrt(
+                    Math.pow(cursorX - divCenterX, 2) + Math.pow(cursorY - divCenterY, 2)
+                );
+
+                // Update closest div if this div is closer
+                if (distance < minDistance) {
+                    minDistance = distance;
+                    closestDiv = div;
+                }
+            });
+
+            return closestDiv;
+        }
+
+        // Simulate a click event
+        function simulateClick() {
+            const cursorX = parseFloat(customCursor.style.left);
+            const cursorY = parseFloat(customCursor.style.top);
+
+            // Create a new mouse event
+            const clickEvent = new MouseEvent('click', {
+                view: window,
+                bubbles: true,
+                cancelable: true,
+                clientX: cursorX,
+                clientY: cursorY,
+            });
+
+            // Dispatch the event at the cursor's position
+            var ele = document.elementFromPoint(cursorX, cursorY);
+            if (ele) ele.dispatchEvent(clickEvent);
+        }
+
+        // Calculate Euclidean distance between two landmarks
+        function calculateDistance(point1, point2) {
+            return Math.sqrt(
+                Math.pow(point1.x - point2.x, 2) +
+                Math.pow(point1.y - point2.y, 2) +
+                Math.pow(point1.z - point2.z, 2)
+            );
+        }
+    </script>
+</body>
+</html>
