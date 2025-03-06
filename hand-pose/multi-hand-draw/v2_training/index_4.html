@@ -38,13 +38,13 @@
 </head>
 <body>
     <video id="webcam" style="opacity: 0; width: 100%; height: 100%;" autoplay playsinline></video>
-    <canvas style="position:absolute;top:0px;left:0px;width:100%;height:100%;" id="output_canvas"></canvas>
+    <canvas style="opacity: 0; position: absolute; top: 0px; left: 0px; width: 100%; height: 100%;" id="output_canvas"></canvas>
     <div id="custom-cursor"></div>
     <div id="movable-divs-container">
         <!-- Add multiple movable divs -->
-        <div class="movable-div" style="left: 100px; top: 100px;"></div>
-        <div class="movable-div" style="left: 300px; top: 100px;"></div>
-        <div class="movable-div" style="left: 500px; top: 100px;"></div>
+        <div data-mm="d1" class="movable-div" style="left: 100px; top: 100px;"></div>
+        <div data-mm="d2" class="movable-div" style="left: 300px; top: 100px;"></div>
+        <div data-mm="d3" class="movable-div" style="left: 500px; top: 100px;"></div>
     </div>
     <!--<p id="gesture_output"></p>-->
     <p id="gesture_output" style="position:absolute;top: 5px; left: 5px;"></p>
@@ -158,10 +158,11 @@
                 thumbRingDistance < grabThreshold &&
                 thumbPinkyDistance < grabThreshold
             ) {
-                const cursorX = indexTip.x * canvasElement.width;
-                const cursorY = indexTip.y * canvasElement.height;
-                var eee = document.elementFromPoint(cursorX, cursorY);
-                if (eee.classList.contains('movable-div')) {
+                const cursorX = indexTip.x * window.innerWidth;
+                const cursorY = indexTip.y * window.innerHeight;
+                //var eee = document.elementFromPoint(cursorX, cursorY);
+                var eee = findClosestDiv(cursorX, cursorY);
+                if (eee && eee.classList.contains('movable-div')) {
                     selectedDiv = eee;
                     console.log('right movale div selected', eee);
                 } else {
@@ -247,9 +248,11 @@
         // Find the closest div to the cursor
         function findClosestDiv(cursorX, cursorY) {
             let closestDiv = null;
-            let minDistance = Infinity;
+            //let minDistance = Infinity;
+            let minDistance = 100;
 
-            movableDivs.forEach((div) => {
+            movableDivs.forEach((div, idx) => {
+                console.log('idx : ', idx)
                 const rect = div.getBoundingClientRect();
                 const divCenterX = rect.left + rect.width / 2;
                 const divCenterY = rect.top + rect.height / 2;
@@ -258,7 +261,7 @@
                 const distance = Math.sqrt(
                     Math.pow(cursorX - divCenterX, 2) + Math.pow(cursorY - divCenterY, 2)
                 );
-
+                console.log('Nearest distance ', div.getAttribute("data-mm"), distance)
                 // Update closest div if this div is closer
                 if (distance < minDistance) {
                     minDistance = distance;
