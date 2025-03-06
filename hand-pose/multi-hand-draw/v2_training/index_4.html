@@ -34,11 +34,14 @@
             border-radius: 10px;
             cursor: pointer;
         }
+        #webcam, #output_canvas {
+            transform: scaleX(-1); /* Flip horizontally */
+        }
     </style>
 </head>
 <body>
     <video id="webcam" style="opacity: 0; width: 100%; height: 100%;" autoplay playsinline></video>
-    <canvas style="opacity: 0; position: absolute; top: 0px; left: 0px; width: 100%; height: 100%;" id="output_canvas"></canvas>
+    <canvas style="opacity: 1; position: absolute; top: 0px; left: 0px; width: 100%; height: 100%;" id="output_canvas"></canvas>
     <div id="custom-cursor"></div>
     <div id="movable-divs-container">
         <!-- Add multiple movable divs -->
@@ -65,10 +68,10 @@
         });
 
         hands.setOptions({
-            maxNumHands: 2,
+            maxNumHands: 1,
             modelComplexity: 1,
             minDetectionConfidence: 0.5,
-            minTrackingConfidence: 0.5,
+            minTrackingConfidence: 0.5
         });
 
         hands.onResults(onResults);
@@ -158,7 +161,7 @@
                 thumbRingDistance < grabThreshold &&
                 thumbPinkyDistance < grabThreshold
             ) {
-                const cursorX = indexTip.x * window.innerWidth;
+                const cursorX = (1 - indexTip.x) * window.innerWidth;
                 const cursorY = indexTip.y * window.innerHeight;
                 //var eee = document.elementFromPoint(cursorX, cursorY);
                 var eee = findClosestDiv(cursorX, cursorY);
@@ -194,7 +197,7 @@
             const indexTip = landmarks[8]; // Index finger tip landmark
 
             // Convert normalized coordinates to screen coordinates
-            const x = indexTip.x * window.innerWidth;
+            const x = (1 - indexTip.x) * window.innerWidth;
             const y = indexTip.y * window.innerHeight;
 
             // Update the custom cursor position
@@ -228,7 +231,7 @@
                 const indexTip = landmarks[8]; // Index finger tip landmark
 
                 // Convert normalized coordinates to screen coordinates
-                const cursorX = indexTip.x * window.innerWidth;
+                const cursorX = (1 - indexTip.x) * window.innerWidth;
                 const cursorY = indexTip.y * window.innerHeight;
                 //selectedDiv = document.elementFromPoint(cursorX, cursorY);
 
