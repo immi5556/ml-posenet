@@ -10,10 +10,10 @@ deployed v2_training folder to  (to test the mouse track)
 
 https://hand-pose.immanuel.co
 
-
 -- updated some trial features
-
--- grab
+	- grab
+	- click
+	- deployed index_5.html as latest & mapped in "hand pose" in the immanuel.co page
 
 -- to run from python
 
