@@ -13,3 +13,5 @@ https://ocr.immanuel.co/
 	.net implementaion FORK OF 'https://github.com/immi5556/tesseract/'
 	tess data
 	https://github.com/tesseract-ocr/tessdata
+
+	create folder "img_upl" inside wwwroot
