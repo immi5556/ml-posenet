@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
+</head>
+<body>
+  <video id="webcam" autoplay playsinline style="transform: scaleX(-1);"></video>
+  <canvas id="overlay" style="position:absolute; top:0; left:0; pointer-events:none;"></canvas>
+
+  <!-- Your gesture controller script here -->
+   <script>
+    // Recommended: Using MediaPipe Hands (much faster & more accurate than old handpose model)
+// But code structure is similar for both
+
+class GesturePointerController {
+  constructor(videoElement, canvasElement) {
+    this.video = videoElement;
+    this.canvas = canvasElement;
+    this.ctx = canvasElement.getContext('2d');
+    
+    this.pointerX = 0;
+    this.pointerY = 0;
+    this.prevX = 0;
+    this.prevY = 0;
+    
+    this.isPinching = false;
+    this.wasPinching = false;
+    this.isDragging = false;
+    
+    this.lastClickTime = 0;
+    this.clickDebounceMs = 400;
+    
+    // For smoother movement
+    this.smoothing = 0.68;
+    
+    this.hands = null;           // will hold MediaPipe Hands instance
+    this.running = false;
+  }
+
+  async initialize() {
+    const { Hands, HAND_CONNECTIONS } = window; // from CDN or module
+
+    this.hands = new Hands({
+      locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
+    });
+
+    this.hands.setOptions({
+      maxNumHands: 2,
+      modelComplexity: 1,           // 0 = lite, 1 = full (better accuracy)
+      minDetectionConfidence: 0.7,
+      minTrackingConfidence: 0.6
+    });
+
+    this.hands.onResults((results) => this.onHandsResults(results));
+
+    await this.hands.initialize();
+
+    // Start camera
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: { width: 1280, height: 720 }
+    });
+    
+    this.video.srcObject = stream;
+    this.video.onloadedmetadata = () => {
+      this.video.play();
+      this.canvas.width = this.video.videoWidth;
+      this.canvas.height = this.video.videoHeight;
+      this.start();
+    };
+  }
+
+  start() {
+    if (this.running) return;
+    this.running = true;
+    this.loop();
+  }
+
+  stop() {
+    this.running = false;
+  }
+
+  async loop() {
+    if (!this.running) return;
+
+    await this.hands.send({ image: this.video });
+    requestAnimationFrame(() => this.loop());
+  }
+
+  onHandsResults(results) {
+    this.ctx.save();
+    this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+    // Optional: this.ctx.drawImage(this.video, 0, 0, this.canvas.width, this.canvas.height);
+
+    if (results.multiHandLandmarks?.length > 0) {
+      const hand = results.multiHandLandmarks[0]; // take dominant hand (you can improve this)
+      
+      // ─── Primary pointer: index finger tip ───────────────────────────────
+      const indexTip = hand[8];
+      const middleTip = hand[12];
+
+      // Convert normalized coordinates → screen coordinates
+      let targetX = indexTip.x * window.innerWidth;
+      let targetY = indexTip.y * window.innerHeight;
+
+      // Exponential smoothing
+      this.pointerX += (targetX - this.pointerX) * this.smoothing;
+      this.pointerY += (targetY - this.pointerY) * this.smoothing;
+
+      // ─── Pinch detection ────────────────────────────────────────────────
+      const distance = this.getDistance(indexTip, middleTip);
+      this.isPinching = distance < 0.065; // tune this threshold!
+
+      // ─── Visual feedback ────────────────────────────────────────────────
+      this.drawPointer(this.pointerX, this.pointerY, this.isPinching);
+
+      // ─── Gesture actions ────────────────────────────────────────────────
+      this.handleGestures();
+    }
+
+    this.ctx.restore();
+  }
+
+  getDistance(a, b) {
+    const dx = a.x - b.x;
+    const dy = a.y - b.y;
+    const dz = (a.z - b.z) * 3; // z is more noisy → we amplify a bit
+    return Math.sqrt(dx*dx + dy*dy + dz*dz);
+  }
+
+  drawPointer(x, y, pinching) {
+    this.ctx.beginPath();
+    this.ctx.arc(x, y, pinching ? 16 : 12, 0, Math.PI*2);
+    this.ctx.fillStyle = pinching ? 'rgba(255,80,80,0.85)' : 'rgba(60,180,255,0.7)';
+    this.ctx.fill();
+    this.ctx.strokeStyle = '#ffffff';
+    this.ctx.lineWidth = 3;
+    this.ctx.stroke();
+  }
+
+  handleGestures() {
+    const now = performance.now();
+
+    // ─── Pinch → Click ──────────────────────────────────────────────────
+    if (this.isPinching && !this.wasPinching) {
+      // Pinch started → possible click
+      if (now - this.lastClickTime > this.clickDebounceMs) {
+        this.simulateClick(this.pointerX, this.pointerY);
+        this.lastClickTime = now;
+      }
+    }
+
+    // ─── Pinch + movement → Drag ────────────────────────────────────────
+    if (this.isPinching) {
+      if (!this.isDragging) {
+        this.isDragging = true;
+        this.simulateMouseDown(this.pointerX, this.pointerY);
+      } else {
+        this.simulateMouseMove(this.pointerX, this.pointerY);
+      }
+    } else if (this.isDragging) {
+      // Pinch released → end drag
+      this.simulateMouseUp(this.pointerX, this.pointerY);
+      this.isDragging = false;
+    }
+
+    // ─── Two hands pinch → Zoom ─────────────────────────────────────────
+    // (very simple version - you can make much better gesture detection)
+    if (this.isPinching && this.hands.multiHandLandmarks?.length >= 2) {
+      this.handleZoomGesture();
+    }
+
+    this.wasPinching = this.isPinching;
+  }
+
+  // Very basic pinch-to-zoom simulation (you can improve a lot!)
+  handleZoomGesture() {
+    // You would need to track distance between both index fingers
+    // and compare with previous frame distance
+    // then dispatch wheel event with deltaY
+    const wheelEvent = new WheelEvent('wheel', {
+      deltaY: -80,  // negative = zoom in
+      deltaMode: 0,
+      clientX: this.pointerX,
+      clientY: this.pointerY,
+      bubbles: true,
+      cancelable: true
+    });
+    document.elementFromPoint(this.pointerX, this.pointerY)?.dispatchEvent(wheelEvent);
+  }
+
+  // ─── Low level mouse simulation helpers ───────────────────────────────
+  simulateClick(x, y) {
+    this.simulateMouseDown(x, y);
+    setTimeout(() => this.simulateMouseUp(x, y), 60);
+  }
+
+  simulateMouseDown(x, y) {
+    const el = document.elementFromPoint(x, y);
+    if (!el) return;
+
+    el.dispatchEvent(new MouseEvent('mousedown', {
+      bubbles: true,
+      cancelable: true,
+      clientX: x,
+      clientY: y,
+      button: 0
+    }));
+  }
+
+  simulateMouseUp(x, y) {
+    const el = document.elementFromPoint(x, y);
+    if (!el) return;
+
+    el.dispatchEvent(new MouseEvent('mouseup', {
+      bubbles: true,
+      cancelable: true,
+      clientX: x,
+      clientY: y,
+      button: 0
+    }));
+
+    // Also fire click for most normal web interactions
+    el.dispatchEvent(new MouseEvent('click', {
+      bubbles: true,
+      cancelable: true,
+      clientX: x,
+      clientY: y
+    }));
+  }
+
+  simulateMouseMove(x, y) {
+    const el = document.elementFromPoint(x, y);
+    if (!el) return;
+
+    el.dispatchEvent(new MouseEvent('mousemove', {
+      bubbles: true,
+      cancelable: true,
+      clientX: x,
+      clientY: y,
+      movementX: x - this.prevX,
+      movementY: y - this.prevY
+    }));
+
+    this.prevX = x;
+    this.prevY = y;
+  }
+}
+
+// ─── Usage example ───────────────────────────────────────────────────────
+const video = document.getElementById('webcam');
+const canvas = document.getElementById('overlay');
+
+const controller = new GesturePointerController(video, canvas);
+
+(async () => {
+  try {
+    await controller.initialize();
+    console.log("Gesture pointer ready! ✋→🖱️");
+  } catch (e) {
+    console.error("Failed to start gesture control:", e);
+  }
+})();
+   </script>
+</body>
+</html>

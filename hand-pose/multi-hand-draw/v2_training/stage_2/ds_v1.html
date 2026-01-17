@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hand Gesture Mouse Control</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background: #f0f0f0;
+        }
+        
+        .draggable {
+            position: absolute;
+            width: 100px;
+            height: 100px;
+            background: linear-gradient(45deg, #3498db, #9b59b6);
+            border-radius: 10px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-family: Arial, sans-serif;
+            user-select: none;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        
+        .zoomable {
+            position: absolute;
+            width: 300px;
+            height: 300px;
+            background: linear-gradient(45deg, #2ecc71, #f1c40f);
+            border-radius: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 24px;
+            text-align: center;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+    </style>
+</head>
+<body>
+    <div id="draggable1" class="draggable" style="left: 100px; top: 100px;">
+        Drag Me
+    </div>
+    
+    <div id="draggable2" class="draggable" style="left: 300px; top: 100px;">
+        Click Me
+    </div>
+    
+    <div id="zoomable" class="zoomable" style="left: 100px; top: 250px;">
+        Pinch to Zoom
+    </div>
+    
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-core"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-webgl"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/handpose"></script>
+    <script type="module" src="ds_v1.js"></script>
+    
+    <script>
+        // Add drag functionality
+        let activeDragElement = null;
+        let offset = { x: 0, y: 0 };
+        
+        document.addEventListener('mousedown', (e) => {
+            if (e.target.classList.contains('draggable')) {
+                activeDragElement = e.target;
+                const rect = activeDragElement.getBoundingClientRect();
+                offset.x = e.clientX - rect.left;
+                offset.y = e.clientY - rect.top;
+            }
+        });
+        
+        document.addEventListener('mousemove', (e) => {
+            if (activeDragElement) {
+                activeDragElement.style.left = (e.clientX - offset.x) + 'px';
+                activeDragElement.style.top = (e.clientY - offset.y) + 'px';
+            }
+        });
+        
+        document.addEventListener('mouseup', () => {
+            activeDragElement = null;
+        });
+        
+        // Add click functionality
+        document.getElementById('draggable2').addEventListener('click', function() {
+            this.style.background = 'linear-gradient(45deg, #e74c3c, #d35400)';
+            setTimeout(() => {
+                this.style.background = 'linear-gradient(45deg, #3498db, #9b59b6)';
+            }, 300);
+        });
+        
+        // Add zoom functionality
+        let zoomScale = 1;
+        const zoomable = document.getElementById('zoomable');
+        
+        document.addEventListener('hand-zoom', (e) => {
+            zoomScale *= e.detail.scale;
+            zoomable.style.transform = `scale(${zoomScale})`;
+            zoomable.style.transformOrigin = `${e.detail.x - zoomable.offsetLeft}px ${e.detail.y - zoomable.offsetTop}px`;
+        });
+        
+        zoomable.addEventListener('wheel', (e) => {
+            e.preventDefault();
+            zoomScale *= e.deltaY > 0 ? 0.9 : 1.1;
+            zoomable.style.transform = `scale(${zoomScale})`;
+        });
+    </script>
+</body>
+</html>

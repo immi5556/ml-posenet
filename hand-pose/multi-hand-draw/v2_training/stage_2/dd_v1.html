@@ -1,0 +1,1141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Soldier Defense</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            overflow: hidden;
+            font-family: 'Arial', sans-serif;
+            background: #0a0a1a;
+            color: white;
+        }
+
+        /* Video Background Container */
+        .video-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 1;
+            overflow: hidden;
+        }
+
+        #backgroundVideo {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transform: scaleX(-1);
+            filter: brightness(0.4) contrast(1.2);
+        }
+
+        /* Video Overlay Canvas for Hand Pose */
+        #overlayCanvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 2;
+            pointer-events: none;
+        }
+
+        /* Game Canvas - Full Screen */
+        #gameCanvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 3;
+            pointer-events: none;
+        }
+
+        /* Controls */
+        .controls {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            z-index: 10;
+            background: rgba(0, 20, 40, 0.8);
+            padding: 8px 12px;
+            border-radius: 5px;
+            border: 1px solid #00aaff;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+        }
+
+        /* Score Display */
+        .score {
+            position: fixed;
+            top: 10px;
+            left: 10px;
+            z-index: 10;
+            background: rgba(0, 20, 40, 0.8);
+            padding: 8px 15px;
+            border-radius: 5px;
+            font-size: 16px;
+            font-weight: bold;
+            color: #00ff88;
+            border: 1px solid #00aaff;
+        }
+
+        /* Game Over Screen */
+        .game-over {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.95);
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 20;
+        }
+
+        .game-over h1 {
+            font-size: 48px;
+            color: #ff4444;
+            margin-bottom: 20px;
+            text-shadow: 0 0 10px #ff0000;
+        }
+
+        .game-over p {
+            font-size: 24px;
+            margin-bottom: 30px;
+            color: #00ff88;
+        }
+
+        .game-over button {
+            padding: 15px 40px;
+            font-size: 18px;
+            background: linear-gradient(45deg, #0088ff, #00ff88);
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: transform 0.2s;
+        }
+
+        .game-over button:hover {
+            transform: scale(1.05);
+        }
+
+        /* Loading Screen */
+        .loading {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #0a0a1a;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+            color: #00ff88;
+            font-size: 20px;
+        }
+
+        .loading span {
+            margin-top: 20px;
+            font-size: 14px;
+            color: #888;
+        }
+
+        /* Hand Pointer */
+        .hand-pointer {
+            position: fixed;
+            width: 40px;
+            height: 40px;
+            background: rgba(0, 255, 136, 0.3);
+            border: 2px solid #00ff88;
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 4;
+            display: none;
+            box-shadow: 0 0 20px #00ff88;
+        }
+
+        .hand-pointer:after {
+            content: '👆';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 20px;
+            color: #00ff88;
+        }
+
+        /* Soldier Status */
+        .soldier-status {
+            position: fixed;
+            bottom: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 10px;
+            z-index: 10;
+            background: rgba(0, 20, 40, 0.8);
+            padding: 8px 15px;
+            border-radius: 5px;
+            border: 1px solid #00aaff;
+        }
+
+        .soldier-icon {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            background: #0088ff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            transition: all 0.3s;
+        }
+
+        .soldier-icon.dead {
+            background: #ff4444;
+            transform: scale(0.8);
+        }
+
+        /* Debug Stats */
+        .debug-stats {
+            position: fixed;
+            bottom: 10px;
+            right: 10px;
+            z-index: 10;
+            background: rgba(0, 0, 0, 0.5);
+            padding: 5px 10px;
+            border-radius: 3px;
+            font-size: 11px;
+            color: #888;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <!-- Video Background -->
+    <div class="video-container">
+        <video id="backgroundVideo" autoplay playsinline muted></video>
+    </div>
+
+    <!-- Overlay Canvas for Hand Pose -->
+    <canvas id="overlayCanvas"></canvas>
+
+    <!-- Game Canvas -->
+    <canvas id="gameCanvas"></canvas>
+
+    <!-- Hand Pointer -->
+    <div class="hand-pointer" id="handPointer"></div>
+
+    <!-- Controls -->
+    <div class="controls">
+        <input type="checkbox" id="showCamera" checked>
+        <label for="showCamera">Show Camera</label>
+    </div>
+
+    <!-- Score Display -->
+    <div class="score">
+        Bombs Stopped: <span id="bombsStopped">0</span>
+    </div>
+
+    <!-- Soldier Status -->
+    <div class="soldier-status" id="soldierStatus">
+        <div class="soldier-icon" id="soldier1">1</div>
+        <div class="soldier-icon" id="soldier2">2</div>
+        <div class="soldier-icon" id="soldier3">3</div>
+        <div class="soldier-icon" id="soldier4">4</div>
+        <div class="soldier-icon" id="soldier5">5</div>
+    </div>
+
+    <!-- Debug Stats -->
+    <div class="debug-stats" id="debugStats">
+        FPS: <span id="fpsCounter">0</span>
+    </div>
+
+    <!-- Game Over Screen -->
+    <div class="game-over" id="gameOverScreen">
+        <h1>MISSION FAILED</h1>
+        <p>All Soldiers Lost</p>
+        <p>Bombs Stopped: <span id="finalScore">0</span></p>
+        <button onclick="restartGame()">RETRY MISSION</button>
+    </div>
+
+    <!-- Loading Screen -->
+    <div class="loading" id="loadingScreen">
+        <div>Initializing Defense System...</div>
+        <span>Show your hand to the camera</span>
+    </div>
+
+    <!-- Hidden Processing Video -->
+    <video id="processingVideo" autoplay playsinline muted style="display: none;"></video>
+
+    <!-- Load TensorFlow.js -->
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.11.0/dist/tf.min.js"></script>
+    
+    <script>
+        class SoldierDefenseGame {
+            constructor() {
+                // Video and canvas elements
+                this.displayVideo = document.getElementById('backgroundVideo');
+                this.processingVideo = document.getElementById('processingVideo');
+                this.overlayCanvas = document.getElementById('overlayCanvas');
+                this.overlayCtx = this.overlayCanvas.getContext('2d');
+                this.gameCanvas = document.getElementById('gameCanvas');
+                this.ctx = this.gameCanvas.getContext('2d');
+                
+                // Video dimensions
+                this.videoWidth = 0;
+                this.videoHeight = 0;
+                this.videoAspectRatio = 0;
+                
+                // Game state
+                this.soldiers = [
+                    { id: 1, x: 0, y: 0, alive: true },
+                    { id: 2, x: 0, y: 0, alive: true },
+                    { id: 3, x: 0, y: 0, alive: true },
+                    { id: 4, x: 0, y: 0, alive: true },
+                    { id: 5, x: 0, y: 0, alive: true }
+                ];
+                this.bombsStopped = 0;
+                this.gameActive = false;
+                
+                // Game objects
+                this.shield = {
+                    x: 0,
+                    y: 0,
+                    targetX: 0,
+                    targetY: 0,
+                    radius: 60,
+                    color: '#00ff88',
+                    velocity: { x: 0, y: 0 },
+                    smoothing: 0.15
+                };
+                
+                this.bombs = [];
+                this.explosions = [];
+                
+                // Hand detection
+                this.model = null;
+                this.handPosition = { x: 0, y: 0 };
+                this.showCamera = true;
+                this.handDetected = false;
+                this.handHistory = [];
+                this.historyLength = 5;
+                
+                // Game settings
+                this.bombSpeed = 2;
+                this.bombSpawnRate = 120;
+                this.bombTimer = 0;
+                
+                // Performance tracking
+                this.fps = 0;
+                this.frameCount = 0;
+                this.lastFpsUpdate = Date.now();
+                this.lastFrameTime = Date.now();
+                
+                // Initialize
+                this.init();
+            }
+
+            async init() {
+                // Set canvas size
+                this.resizeCanvas();
+                window.addEventListener('resize', () => this.resizeCanvas());
+                
+                // Setup controls
+                this.setupControls();
+                
+                // Initialize positions
+                this.initSoldierPositions();
+                
+                // Start video and hand detection
+                await this.initVideo();
+                
+                // Start game
+                this.startGame();
+            }
+
+            resizeCanvas() {
+                const width = window.innerWidth;
+                const height = window.innerHeight;
+                
+                this.overlayCanvas.width = width;
+                this.overlayCanvas.height = height;
+                this.gameCanvas.width = width;
+                this.gameCanvas.height = height;
+                
+                // Position shield at center
+                this.shield.x = width / 2;
+                this.shield.y = height / 2;
+                this.shield.targetX = width / 2;
+                this.shield.targetY = height / 2;
+                
+                this.initSoldierPositions();
+            }
+
+            setupControls() {
+                // Camera toggle
+                const showCameraCheckbox = document.getElementById('showCamera');
+                showCameraCheckbox.addEventListener('change', (e) => {
+                    this.showCamera = e.target.checked;
+                    this.displayVideo.style.opacity = e.target.checked ? '1' : '0';
+                });
+                
+                // Show camera by default
+                showCameraCheckbox.checked = true;
+            }
+
+            initSoldierPositions() {
+                const soldierWidth = 60;
+                const spacing = this.gameCanvas.width / 6;
+                
+                this.soldiers.forEach((soldier, index) => {
+                    soldier.x = spacing * (index + 1) - soldierWidth / 2;
+                    soldier.y = this.gameCanvas.height - 100;
+                });
+            }
+
+            async initVideo() {
+                try {
+                    // Get camera access with optimal settings
+                    const stream = await navigator.mediaDevices.getUserMedia({
+                        video: {
+                            width: { ideal: 640 },
+                            height: { ideal: 480 },
+                            frameRate: { ideal: 30 },
+                            facingMode: 'user'
+                        },
+                        audio: false
+                    });
+                    
+                    // Setup processing video (for hand detection)
+                    this.processingVideo.srcObject = stream;
+                    this.processingVideo.autoplay = true;
+                    this.processingVideo.playsinline = true;
+                    
+                    // Setup display video (what user sees)
+                    this.displayVideo.srcObject = stream;
+                    this.displayVideo.autoplay = true;
+                    this.displayVideo.playsinline = true;
+                    this.displayVideo.muted = true;
+                    
+                    await new Promise((resolve) => {
+                        this.processingVideo.onloadedmetadata = () => {
+                            this.processingVideo.play();
+                            resolve();
+                        };
+                    });
+                    
+                    await new Promise((resolve) => {
+                        this.displayVideo.onloadedmetadata = () => {
+                            this.displayVideo.play();
+                            resolve();
+                        };
+                    });
+                    
+                    // Get actual video dimensions
+                    this.videoWidth = this.processingVideo.videoWidth || 640;
+                    this.videoHeight = this.processingVideo.videoHeight || 480;
+                    this.videoAspectRatio = this.videoWidth / this.videoHeight;
+                    
+                    console.log(`Video dimensions: ${this.videoWidth}x${this.videoHeight}`);
+                    
+                    // Load handpose model
+                    await this.loadHandPoseModel();
+                    
+                    // Hide loading screen
+                    document.getElementById('loadingScreen').style.display = 'none';
+                    
+                } catch (error) {
+                    console.error('Camera error:', error);
+                    document.getElementById('loadingScreen').innerHTML = 
+                        'Camera access required<br><span style="color:#ff4444">' + error.message + '</span>';
+                }
+            }
+
+            async loadHandPoseModel() {
+                return new Promise((resolve, reject) => {
+                    const script = document.createElement('script');
+                    script.src = 'https://cdn.jsdelivr.net/npm/@tensorflow-models/handpose@0.0.7/dist/handpose.min.js';
+                    
+                    script.onload = async () => {
+                        try {
+                            // @ts-ignore
+                            this.model = await handpose.load();
+                            this.startHandDetection();
+                            resolve();
+                        } catch (e) {
+                            reject(e);
+                        }
+                    };
+                    
+                    script.onerror = reject;
+                    document.head.appendChild(script);
+                });
+            }
+
+            startHandDetection() {
+                if (!this.model) return;
+                
+                const detect = async () => {
+                    if (this.model && this.processingVideo.readyState >= 2) {
+                        try {
+                            const predictions = await this.model.estimateHands(this.processingVideo);
+                            this.processHand(predictions);
+                        } catch (e) {
+                            console.error('Detection error:', e);
+                        }
+                    }
+                    requestAnimationFrame(detect);
+                };
+                
+                detect();
+            }
+
+            processHand(predictions) {
+                const handPointer = document.getElementById('handPointer');
+                
+                if (!predictions || predictions.length === 0) {
+                    this.handDetected = false;
+                    handPointer.style.display = 'none';
+                    
+                    // Clear overlay if no hand
+                    this.overlayCtx.clearRect(0, 0, this.overlayCanvas.width, this.overlayCanvas.height);
+                    return;
+                }
+                
+                // Only track the first hand
+                const hand = predictions[0];
+                const landmarks = hand.landmarks;
+                
+                if (landmarks && landmarks.length >= 9) {
+                    // Get index finger tip
+                    const indexTip = landmarks[8];
+                    
+                    // Convert normalized coordinates to screen coordinates
+                    const screenX = (1 - indexTip[0] / this.videoWidth) * this.gameCanvas.width;
+                    const screenY = (indexTip[1] / this.videoHeight) * this.gameCanvas.height;
+                    
+                    // Add to history for smoothing
+                    this.handHistory.push({ x: screenX, y: screenY });
+                    if (this.handHistory.length > this.historyLength) {
+                        this.handHistory.shift();
+                    }
+                    
+                    // Calculate smoothed position
+                    let avgX = 0, avgY = 0;
+                    this.handHistory.forEach(pos => {
+                        avgX += pos.x;
+                        avgY += pos.y;
+                    });
+                    avgX /= this.handHistory.length;
+                    avgY /= this.handHistory.length;
+                    
+                    // Update hand position
+                    this.handPosition.x = avgX;
+                    this.handPosition.y = avgY;
+                    
+                    // Update shield target (shield will smooth toward this)
+                    this.shield.targetX = this.handPosition.x;
+                    this.shield.targetY = this.handPosition.y;
+                    
+                    // Update hand pointer
+                    handPointer.style.left = (this.handPosition.x - 20) + 'px';
+                    handPointer.style.top = (this.handPosition.y - 20) + 'px';
+                    handPointer.style.display = 'block';
+                    
+                    // Draw hand pose overlay
+                    this.drawHandPose(landmarks);
+                    
+                    this.handDetected = true;
+                }
+            }
+
+            drawHandPose(landmarks) {
+                // Clear overlay canvas
+                this.overlayCtx.clearRect(0, 0, this.overlayCanvas.width, this.overlayCanvas.height);
+                
+                if (!this.showCamera) return;
+                
+                // Calculate video display area (centered, maintain aspect ratio)
+                const screenWidth = this.overlayCanvas.width;
+                const screenHeight = this.overlayCanvas.height;
+                
+                // Video will be displayed covering the entire screen with object-fit: cover
+                // So we need to calculate the mapping from video coordinates to screen coordinates
+                
+                // For object-fit: cover, the video fills the screen while maintaining aspect ratio
+                // We need to calculate the scaled dimensions and offset
+                let videoDisplayWidth, videoDisplayHeight, offsetX, offsetY;
+                
+                const screenAspect = screenWidth / screenHeight;
+                const videoAspect = this.videoWidth / this.videoHeight;
+                
+                if (videoAspect > screenAspect) {
+                    // Video is wider than screen
+                    videoDisplayHeight = screenHeight;
+                    videoDisplayWidth = videoDisplayHeight * videoAspect;
+                    offsetX = (screenWidth - videoDisplayWidth) / 2;
+                    offsetY = 0;
+                } else {
+                    // Video is taller than screen
+                    videoDisplayWidth = screenWidth;
+                    videoDisplayHeight = videoDisplayWidth / videoAspect;
+                    offsetX = 0;
+                    offsetY = (screenHeight - videoDisplayHeight) / 2;
+                }
+                
+                // Map video coordinates to screen coordinates
+                const scaleX = videoDisplayWidth / this.videoWidth;
+                const scaleY = videoDisplayHeight / this.videoHeight;
+                
+                // Function to convert video coordinates to screen coordinates
+                const toScreenX = (videoX) => {
+                    // Mirror X coordinate and scale
+                    const mirroredX = this.videoWidth - videoX;
+                    return offsetX + (mirroredX * scaleX);
+                };
+                
+                const toScreenY = (videoY) => {
+                    return offsetY + (videoY * scaleY);
+                };
+                
+                // Draw hand connections
+                this.overlayCtx.strokeStyle = 'rgba(0, 255, 136, 0.8)';
+                this.overlayCtx.lineWidth = 3;
+                this.overlayCtx.lineCap = 'round';
+                this.overlayCtx.lineJoin = 'round';
+                
+                // Define hand connections (MediaPipe Hands landmarks)
+                const connections = [
+                    [0, 1], [1, 2], [2, 3], [3, 4], // Thumb
+                    [0, 5], [5, 6], [6, 7], [7, 8], // Index finger
+                    [0, 9], [9, 10], [10, 11], [11, 12], // Middle finger
+                    [0, 13], [13, 14], [14, 15], [15, 16], // Ring finger
+                    [0, 17], [17, 18], [18, 19], [19, 20], // Pinky
+                    [5, 9], [9, 13], [13, 17] // Palm connections
+                ];
+                
+                // Draw connections
+                connections.forEach(([startIdx, endIdx]) => {
+                    const startLandmark = landmarks[startIdx];
+                    const endLandmark = landmarks[endIdx];
+                    
+                    const startX = toScreenX(startLandmark[0]);
+                    const startY = toScreenY(startLandmark[1]);
+                    const endX = toScreenX(endLandmark[0]);
+                    const endY = toScreenY(endLandmark[1]);
+                    
+                    this.overlayCtx.beginPath();
+                    this.overlayCtx.moveTo(startX, startY);
+                    this.overlayCtx.lineTo(endX, endY);
+                    this.overlayCtx.stroke();
+                });
+                
+                // Draw landmarks
+                this.overlayCtx.fillStyle = 'rgba(255, 50, 50, 0.8)';
+                landmarks.forEach(landmark => {
+                    const x = toScreenX(landmark[0]);
+                    const y = toScreenY(landmark[1]);
+                    
+                    this.overlayCtx.beginPath();
+                    this.overlayCtx.arc(x, y, 4, 0, Math.PI * 2);
+                    this.overlayCtx.fill();
+                });
+                
+                // Highlight index finger tip
+                const indexTip = landmarks[8];
+                const x = toScreenX(indexTip[0]);
+                const y = toScreenY(indexTip[1]);
+                
+                this.overlayCtx.fillStyle = 'rgba(255, 255, 0, 0.9)';
+                this.overlayCtx.beginPath();
+                this.overlayCtx.arc(x, y, 8, 0, Math.PI * 2);
+                this.overlayCtx.fill();
+            }
+
+            updateShield() {
+                // Calculate distance to target
+                const dx = this.shield.targetX - this.shield.x;
+                const dy = this.shield.targetY - this.shield.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                
+                // Smooth movement using velocity
+                const maxSpeed = 15;
+                const acceleration = 0.3;
+                
+                // Apply acceleration toward target
+                if (distance > 5) {
+                    const targetSpeed = Math.min(maxSpeed, distance * this.shield.smoothing);
+                    const targetVx = (dx / distance) * targetSpeed;
+                    const targetVy = (dy / distance) * targetSpeed;
+                    
+                    // Smooth velocity changes
+                    this.shield.velocity.x += (targetVx - this.shield.velocity.x) * acceleration;
+                    this.shield.velocity.y += (targetVy - this.shield.velocity.y) * acceleration;
+                    
+                    // Update position
+                    this.shield.x += this.shield.velocity.x;
+                    this.shield.y += this.shield.velocity.y;
+                } else {
+                    // Slow down when close to target
+                    this.shield.velocity.x *= 0.9;
+                    this.shield.velocity.y *= 0.9;
+                    this.shield.x += this.shield.velocity.x;
+                    this.shield.y += this.shield.velocity.y;
+                }
+                
+                // Clamp to screen bounds with padding
+                const padding = this.shield.radius;
+                this.shield.x = Math.max(padding, Math.min(this.shield.x, this.gameCanvas.width - padding));
+                this.shield.y = Math.max(padding, Math.min(this.shield.y, this.gameCanvas.height - padding));
+            }
+
+            startGame() {
+                this.gameActive = true;
+                this.gameLoop();
+            }
+
+            gameLoop() {
+                if (!this.gameActive) return;
+                
+                const currentTime = Date.now();
+                const deltaTime = Math.min(currentTime - this.lastFrameTime, 33) / 16.67;
+                this.lastFrameTime = currentTime;
+                
+                // Update FPS counter
+                this.frameCount++;
+                if (currentTime - this.lastFpsUpdate >= 1000) {
+                    this.fps = Math.round((this.frameCount * 1000) / (currentTime - this.lastFpsUpdate));
+                    this.frameCount = 0;
+                    this.lastFpsUpdate = currentTime;
+                    document.getElementById('fpsCounter').textContent = this.fps;
+                }
+                
+                // Update shield position with smooth movement
+                this.updateShield();
+                
+                // Clear game canvas with transparency
+                this.ctx.clearRect(0, 0, this.gameCanvas.width, this.gameCanvas.height);
+                
+                // Update game state
+                this.update(deltaTime);
+                
+                // Draw game elements
+                this.draw();
+                
+                // Continue loop
+                requestAnimationFrame(() => this.gameLoop());
+            }
+
+            update(deltaTime) {
+                // Spawn bombs (reduced flow)
+                this.bombTimer++;
+                if (this.bombTimer >= this.bombSpawnRate) {
+                    this.spawnBomb();
+                    this.bombTimer = 0;
+                }
+                
+                // Update bombs
+                for (let i = this.bombs.length - 1; i >= 0; i--) {
+                    const bomb = this.bombs[i];
+                    
+                    // Move bomb down with delta time
+                    bomb.y += bomb.speed * deltaTime;
+                    
+                    // Check collision with shield
+                    const dx = bomb.x - this.shield.x;
+                    const dy = bomb.y - this.shield.y;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+                    
+                    if (distance < this.shield.radius + bomb.radius) {
+                        // Bomb intercepted
+                        this.createExplosion(bomb.x, bomb.y, '#00ff88');
+                        this.bombs.splice(i, 1);
+                        this.bombsStopped++;
+                        this.updateScore();
+                        continue;
+                    }
+                    
+                    // Check collision with soldiers
+                    for (let j = 0; j < this.soldiers.length; j++) {
+                        const soldier = this.soldiers[j];
+                        if (soldier.alive) {
+                            const sdx = bomb.x - soldier.x - 30;
+                            const sdy = bomb.y - soldier.y - 40;
+                            const sDistance = Math.sqrt(sdx * sdx + sdy * sdy);
+                            
+                            if (sDistance < bomb.radius + 30) {
+                                // Soldier hit
+                                this.createExplosion(bomb.x, bomb.y, '#ff4444');
+                                soldier.alive = false;
+                                this.bombs.splice(i, 1);
+                                this.updateSoldierStatus();
+                                break;
+                            }
+                        }
+                    }
+                    
+                    // Remove bomb if off screen
+                    if (bomb.y > this.gameCanvas.height + 50) {
+                        this.bombs.splice(i, 1);
+                    }
+                }
+                
+                // Update explosions
+                for (let i = this.explosions.length - 1; i >= 0; i--) {
+                    const explosion = this.explosions[i];
+                    explosion.radius += explosion.growth * deltaTime;
+                    explosion.life -= 0.02 * deltaTime;
+                    
+                    if (explosion.life <= 0) {
+                        this.explosions.splice(i, 1);
+                    }
+                }
+                
+                // Check game over (all soldiers dead)
+                const aliveSoldiers = this.soldiers.filter(s => s.alive).length;
+                if (aliveSoldiers === 0) {
+                    this.gameOver();
+                }
+            }
+
+            spawnBomb() {
+                const bombTypes = [
+                    { color: '#ff4444', speed: 2, radius: 15 },
+                    { color: '#ffaa00', speed: 2.5, radius: 12 },
+                    { color: '#ff44ff', speed: 1.8, radius: 18 }
+                ];
+                
+                const type = bombTypes[Math.floor(Math.random() * bombTypes.length)];
+                
+                const bomb = {
+                    x: Math.random() * (this.gameCanvas.width - 40) + 20,
+                    y: -40,
+                    radius: type.radius,
+                    color: type.color,
+                    speed: type.speed
+                };
+                
+                this.bombs.push(bomb);
+            }
+
+            createExplosion(x, y, color) {
+                this.explosions.push({
+                    x, y,
+                    radius: 10,
+                    growth: 3,
+                    life: 1,
+                    color: color
+                });
+            }
+
+            draw() {
+                // Draw shield with smooth movement
+                this.drawShield();
+                
+                // Draw soldiers
+                this.soldiers.forEach((soldier, index) => {
+                    this.drawSoldier(soldier, index);
+                });
+                
+                // Draw bombs
+                this.bombs.forEach(bomb => {
+                    this.drawBomb(bomb);
+                });
+                
+                // Draw explosions
+                this.explosions.forEach(explosion => {
+                    this.drawExplosion(explosion);
+                });
+            }
+
+            drawShield() {
+                // Shield glow effect
+                const gradient = this.ctx.createRadialGradient(
+                    this.shield.x, this.shield.y, 0,
+                    this.shield.x, this.shield.y, this.shield.radius * 1.5
+                );
+                gradient.addColorStop(0, 'rgba(0, 255, 136, 0.6)');
+                gradient.addColorStop(0.7, 'rgba(0, 255, 136, 0.2)');
+                gradient.addColorStop(1, 'rgba(0, 255, 136, 0)');
+                
+                this.ctx.fillStyle = gradient;
+                this.ctx.beginPath();
+                this.ctx.arc(this.shield.x, this.shield.y, this.shield.radius * 1.5, 0, Math.PI * 2);
+                this.ctx.fill();
+                
+                // Shield body
+                const shieldGradient = this.ctx.createRadialGradient(
+                    this.shield.x, this.shield.y, 0,
+                    this.shield.x, this.shield.y, this.shield.radius
+                );
+                shieldGradient.addColorStop(0, 'rgba(0, 255, 136, 0.8)');
+                shieldGradient.addColorStop(1, 'rgba(0, 255, 136, 0.4)');
+                
+                this.ctx.fillStyle = shieldGradient;
+                this.ctx.beginPath();
+                this.ctx.arc(this.shield.x, this.shield.y, this.shield.radius, 0, Math.PI * 2);
+                this.ctx.fill();
+                
+                // Shield border
+                this.ctx.strokeStyle = '#00ff88';
+                this.ctx.lineWidth = 3;
+                this.ctx.beginPath();
+                this.ctx.arc(this.shield.x, this.shield.y, this.shield.radius, 0, Math.PI * 2);
+                this.ctx.stroke();
+                
+                // Shield pattern (pulsing effect)
+                const pulse = Math.sin(Date.now() / 500) * 0.2 + 0.8;
+                this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+                this.ctx.lineWidth = 2;
+                this.ctx.beginPath();
+                this.ctx.arc(this.shield.x, this.shield.y, this.shield.radius * 0.7 * pulse, 0, Math.PI * 2);
+                this.ctx.stroke();
+            }
+
+            drawSoldier(soldier, index) {
+                const soldierEmojis = ['🪖', '💂', '🔫', '🎖️', '⚔️'];
+                const pulse = Math.sin(Date.now() / 500 + index) * 0.1 + 1;
+                
+                if (soldier.alive) {
+                    // Soldier shadow
+                    this.ctx.save();
+                    this.ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+                    this.ctx.beginPath();
+                    this.ctx.ellipse(soldier.x + 30, soldier.y + 80, 25, 10, 0, 0, Math.PI * 2);
+                    this.ctx.fill();
+                    this.ctx.restore();
+                    
+                    // Soldier body with animation
+                    this.ctx.save();
+                    this.ctx.translate(soldier.x + 30, soldier.y);
+                    
+                    // Breathing animation
+                    const breathScale = 1 + Math.sin(Date.now() / 1000) * 0.02;
+                    this.ctx.scale(1, breathScale);
+                    
+                    // Body
+                    this.ctx.fillStyle = '#1a5f8a';
+                    this.ctx.fillRect(-15, 0, 30, 40);
+                    
+                    // Head
+                    this.ctx.fillStyle = '#e6b87d';
+                    this.ctx.beginPath();
+                    this.ctx.arc(0, -10, 15, 0, Math.PI * 2);
+                    this.ctx.fill();
+                    
+                    // Helmet
+                    this.ctx.fillStyle = '#4a4a4a';
+                    this.ctx.beginPath();
+                    this.ctx.arc(0, -10, 12, 0, Math.PI * 2);
+                    this.ctx.fill();
+                    
+                    // Protection aura
+                    this.ctx.fillStyle = 'rgba(0, 170, 255, 0.2)';
+                    this.ctx.globalAlpha = 0.2 + Math.sin(Date.now() / 500) * 0.1;
+                    this.ctx.beginPath();
+                    this.ctx.arc(0, 0, 25 * pulse, 0, Math.PI * 2);
+                    this.ctx.fill();
+                    
+                    this.ctx.restore();
+                    
+                    // Draw emoji above soldier
+                    this.ctx.save();
+                    this.ctx.font = '30px Arial';
+                    this.ctx.textAlign = 'center';
+                    this.ctx.textBaseline = 'middle';
+                    this.ctx.fillStyle = '#ffffff';
+                    this.ctx.fillText(soldierEmojis[index], soldier.x + 30, soldier.y - 40);
+                    this.ctx.restore();
+                    
+                } else {
+                    // Dead soldier
+                    this.ctx.save();
+                    this.ctx.translate(soldier.x + 30, soldier.y);
+                    
+                    // Gray body
+                    this.ctx.fillStyle = '#666';
+                    this.ctx.fillRect(-15, 0, 30, 40);
+                    
+                    // Gray head
+                    this.ctx.fillStyle = '#999';
+                    this.ctx.beginPath();
+                    this.ctx.arc(0, -10, 15, 0, Math.PI * 2);
+                    this.ctx.fill();
+                    
+                    // Cross mark
+                    this.ctx.strokeStyle = '#ff0000';
+                    this.ctx.lineWidth = 3;
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(-10, -25);
+                    this.ctx.lineTo(10, -5);
+                    this.ctx.moveTo(10, -25);
+                    this.ctx.lineTo(-10, -5);
+                    this.ctx.stroke();
+                    
+                    this.ctx.restore();
+                }
+            }
+
+            drawBomb(bomb) {
+                // Bomb glow
+                const gradient = this.ctx.createRadialGradient(
+                    bomb.x, bomb.y, 0,
+                    bomb.x, bomb.y, bomb.radius * 1.5
+                );
+                gradient.addColorStop(0, bomb.color);
+                gradient.addColorStop(1, 'rgba(255, 68, 68, 0)');
+                
+                this.ctx.fillStyle = gradient;
+                this.ctx.beginPath();
+                this.ctx.arc(bomb.x, bomb.y, bomb.radius * 1.5, 0, Math.PI * 2);
+                this.ctx.fill();
+                
+                // Bomb core
+                this.ctx.fillStyle = bomb.color;
+                this.ctx.beginPath();
+                this.ctx.arc(bomb.x, bomb.y, bomb.radius, 0, Math.PI * 2);
+                this.ctx.fill();
+                
+                // Bomb highlight
+                this.ctx.strokeStyle = '#ffffff';
+                this.ctx.lineWidth = 2;
+                this.ctx.beginPath();
+                this.ctx.arc(bomb.x, bomb.y, bomb.radius, 0, Math.PI * 2);
+                this.ctx.stroke();
+            }
+
+            drawExplosion(explosion) {
+                this.ctx.save();
+                this.ctx.globalAlpha = explosion.life;
+                
+                // Outer explosion ring
+                this.ctx.strokeStyle = explosion.color;
+                this.ctx.lineWidth = 4;
+                this.ctx.beginPath();
+                this.ctx.arc(explosion.x, explosion.y, explosion.radius, 0, Math.PI * 2);
+                this.ctx.stroke();
+                
+                // Inner explosion ring
+                this.ctx.strokeStyle = '#ffffff';
+                this.ctx.lineWidth = 2;
+                this.ctx.beginPath();
+                this.ctx.arc(explosion.x, explosion.y, explosion.radius * 0.7, 0, Math.PI * 2);
+                this.ctx.stroke();
+                
+                this.ctx.restore();
+            }
+
+            updateScore() {
+                document.getElementById('bombsStopped').textContent = this.bombsStopped;
+            }
+
+            updateSoldierStatus() {
+                this.soldiers.forEach((soldier, index) => {
+                    const icon = document.getElementById(`soldier${index + 1}`);
+                    if (soldier.alive) {
+                        icon.classList.remove('dead');
+                    } else {
+                        icon.classList.add('dead');
+                    }
+                });
+            }
+
+            gameOver() {
+                this.gameActive = false;
+                document.getElementById('finalScore').textContent = this.bombsStopped;
+                document.getElementById('gameOverScreen').style.display = 'flex';
+            }
+
+            restart() {
+                // Reset game state
+                this.soldiers.forEach(soldier => {
+                    soldier.alive = true;
+                });
+                
+                this.bombsStopped = 0;
+                this.bombs = [];
+                this.explosions = [];
+                this.bombTimer = 0;
+                this.bombSpeed = 2;
+                this.bombSpawnRate = 120;
+                
+                // Reset positions
+                this.initSoldierPositions();
+                this.shield.x = this.gameCanvas.width / 2;
+                this.shield.y = this.gameCanvas.height / 2;
+                this.shield.targetX = this.gameCanvas.width / 2;
+                this.shield.targetY = this.gameCanvas.height / 2;
+                this.shield.velocity = { x: 0, y: 0 };
+                
+                // Clear hand history
+                this.handHistory = [];
+                
+                // Update displays
+                this.updateScore();
+                this.updateSoldierStatus();
+                
+                // Hide game over screen
+                document.getElementById('gameOverScreen').style.display = 'none';
+                
+                // Restart game
+                this.gameActive = true;
+                this.lastFrameTime = Date.now();
+                this.gameLoop();
+            }
+        }
+
+        // Initialize game automatically
+        let game = null;
+
+        window.addEventListener('load', async () => {
+            game = new SoldierDefenseGame();
+        });
+
+        // Restart function
+        function restartGame() {
+            if (game) {
+                game.restart();
+            }
+        }
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            if (!game) return;
+            
+            if (e.key === 'Escape') {
+                const cameraToggle = document.getElementById('showCamera');
+                cameraToggle.checked = !cameraToggle.checked;
+                cameraToggle.dispatchEvent(new Event('change'));
+            } else if (e.key === 'r' || e.key === 'R') {
+                restartGame();
+            } else if (e.key === 'd' || e.key === 'D') {
+                // Toggle debug stats
+                const debugStats = document.getElementById('debugStats');
+                debugStats.style.display = debugStats.style.display === 'none' ? 'block' : 'none';
+            }
+        });
+    </script>
+</body>
+</html>

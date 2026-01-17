@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hand Gesture Drawing Canvas</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            overflow: hidden;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        .hero {
+            text-align: center;
+            padding: 50px 20px;
+            color: white;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        
+        .hero h1 {
+            font-size: 3.5em;
+            margin-bottom: 20px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+        
+        .hero p {
+            font-size: 1.2em;
+            margin-bottom: 30px;
+            line-height: 1.6;
+        }
+        
+        .start-button {
+            display: inline-block;
+            padding: 20px 50px;
+            font-size: 1.5em;
+            font-weight: bold;
+            background: linear-gradient(45deg, #ff3366, #33ccff);
+            color: white;
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            transition: all 0.3s ease;
+            text-decoration: none;
+            margin: 10px;
+        }
+        
+        .start-button:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 40px rgba(0,0,0,0.4);
+        }
+        
+        .features {
+            display: flex;
+            justify-content: center;
+            flex-wrap: wrap;
+            gap: 30px;
+            margin-top: 50px;
+        }
+        
+        .feature {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            padding: 25px;
+            border-radius: 20px;
+            width: 250px;
+            text-align: center;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .feature h3 {
+            font-size: 1.5em;
+            margin-bottom: 15px;
+        }
+        
+        .feature p {
+            font-size: 1em;
+            opacity: 0.9;
+        }
+        
+        .instructions {
+            margin-top: 50px;
+            background: rgba(0, 0, 0, 0.2);
+            padding: 30px;
+            border-radius: 20px;
+        }
+        
+        .instructions h2 {
+            margin-bottom: 20px;
+        }
+        
+        .instructions ul {
+            list-style: none;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+        }
+        
+        .instructions li {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 15px;
+            border-radius: 10px;
+            font-size: 1.1em;
+        }
+        
+        footer {
+            margin-top: 50px;
+            padding: 20px;
+            text-align: center;
+            font-size: 0.9em;
+            opacity: 0.8;
+        }
+    </style>
+</head>
+<body>
+    <div class="hero">
+        <h1>🎨 Hand Gesture Drawing Canvas</h1>
+        <p>Draw on screen using your hand gestures! No mouse or touch needed.</p>
+        <p>Simply point your finger to draw, make a fist to clear, and use gestures to control your canvas.</p>
+        
+        <button class="start-button" onclick="startHandDrawing()">
+            🚀 Start Drawing Now
+        </button>
+        
+        <button class="start-button" onclick="showInstructions()" style="background: linear-gradient(45deg, #00b09b, #96c93d)">
+            📖 How to Use
+        </button>
+        
+        <div class="features">
+            <div class="feature">
+                <h3>👆 Finger Drawing</h3>
+                <p>Point your index finger to draw on the canvas</p>
+            </div>
+            <div class="feature">
+                <h3>✊ Clear Canvas</h3>
+                <p>Make a fist gesture to clear everything</p>
+            </div>
+            <div class="feature">
+                <h3>✌️ Erase Mode</h3>
+                <p>Show two fingers to enter erase mode</p>
+            </div>
+            <div class="feature">
+                <h3>🎨 Color Change</h3>
+                <p>Open palm gesture cycles through colors</p>
+            </div>
+        </div>
+        
+        <div class="instructions" id="instructions" style="display: none;">
+            <h2>📋 Complete Gesture Guide</h2>
+            <ul>
+                <li><strong>👆 One finger:</strong> Draw mode</li>
+                <li><strong>✌️ Two fingers:</strong> Erase mode</li>
+                <li><strong>✊ Closed fist:</strong> Clear canvas</li>
+                <li><strong>🖐️ Open palm:</strong> Change color</li>
+                <li><strong>👍 Thumbs up:</strong> Save drawing</li>
+                <li><strong>🔄 Wave hand:</strong> Undo last action</li>
+            </ul>
+            <p style="margin-top: 20px; font-size: 1.1em;">
+                <strong>Tips:</strong> Make sure your hand is well-lit and clearly visible to the camera.
+                Keep your fingers extended for best detection.
+            </p>
+        </div>
+        
+        <footer>
+            <p>Made with 🤖 AI and 👋 Hand Tracking | Requires camera permission</p>
+        </footer>
+    </div>
+
+    <!-- Include the HandGestureDrawer class -->
+    <script src="HandGestureDrawer.js"></script>
+    
+    <script>
+        let drawer = null;
+        
+        async function startHandDrawing() {
+            // Request camera permission first
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                // Stop the stream immediately, we'll start it again in the drawer
+                stream.getTracks().forEach(track => track.stop());
+            } catch (error) {
+                alert('Camera access is required for hand gesture drawing. Please allow camera access and try again.');
+                return;
+            }
+            
+            // Hide the hero section
+            document.querySelector('.hero').style.display = 'none';
+            
+            // Initialize the hand drawer
+            drawer = await initializeHandDrawing();
+            
+            if (!drawer) {
+                alert('Failed to initialize hand drawing. Please try again.');
+                document.querySelector('.hero').style.display = 'block';
+            }
+        }
+        
+        function showInstructions() {
+            const instructions = document.getElementById('instructions');
+            instructions.style.display = instructions.style.display === 'none' ? 'block' : 'none';
+        }
+        
+        // Keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && drawer) {
+                drawer.destroy();
+                drawer = null;
+                document.querySelector('.hero').style.display = 'block';
+            }
+        });
+        
+        // Display compatibility warning
+        window.addEventListener('load', () => {
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                alert('Your browser does not support camera access. Please use Chrome, Firefox, or Edge.');
+            }
+        });
+    </script>
+</body>
+</html>

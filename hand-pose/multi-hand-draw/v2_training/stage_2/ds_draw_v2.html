@@ -1,0 +1,634 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simple Hand Drawing</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            overflow: hidden;
+            font-family: Arial, sans-serif;
+        }
+
+        #drawingCanvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            cursor: crosshair;
+            background: #000;
+        }
+
+        #cameraCanvas {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            width: 300px;
+            height: 225px;
+            border: 3px solid #fff;
+            border-radius: 10px;
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+        }
+
+        .controls {
+            position: fixed;
+            top: 10px;
+            left: 10px;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 15px;
+            border-radius: 10px;
+            color: white;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            z-index: 1000;
+        }
+
+        .control-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        label {
+            font-size: 14px;
+            min-width: 50px;
+        }
+
+        input[type="color"] {
+            width: 40px;
+            height: 40px;
+            border: 2px solid white;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        input[type="range"] {
+            width: 100px;
+            cursor: pointer;
+        }
+
+        .buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        button {
+            padding: 8px 15px;
+            border: none;
+            border-radius: 5px;
+            background: #4CAF50;
+            color: white;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background 0.3s;
+        }
+
+        button:hover {
+            background: #45a049;
+        }
+
+        #clearBtn {
+            background: #f44336;
+        }
+
+        #clearBtn:hover {
+            background: #d32f2f;
+        }
+
+        #undoBtn {
+            background: #2196F3;
+        }
+
+        #undoBtn:hover {
+            background: #1976D2;
+        }
+
+        .instructions {
+            position: fixed;
+            bottom: 10px;
+            left: 10px;
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 15px;
+            border-radius: 10px;
+            font-size: 14px;
+            z-index: 1000;
+        }
+
+        .instructions h3 {
+            margin-bottom: 8px;
+            color: #4CAF50;
+        }
+
+        .instructions ul {
+            list-style: none;
+        }
+
+        .instructions li {
+            margin-bottom: 5px;
+        }
+
+        .gesture-icon {
+            display: inline-block;
+            margin-right: 5px;
+            font-size: 16px;
+        }
+
+        .debug {
+            position: fixed;
+            top: 250px;
+            right: 10px;
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 10px;
+            border-radius: 10px;
+            font-size: 12px;
+            max-width: 300px;
+            z-index: 1000;
+        }
+    </style>
+</head>
+<body>
+    <!-- Drawing Canvas -->
+    <canvas id="drawingCanvas"></canvas>
+    
+    <!-- Camera Feed Canvas -->
+    <canvas id="cameraCanvas"></canvas>
+
+    <!-- Controls -->
+    <div class="controls">
+        <h3>🎨 Drawing Controls</h3>
+        
+        <div class="control-group">
+            <label>Color:</label>
+            <input type="color" id="colorPicker" value="#ff0000">
+        </div>
+        
+        <div class="control-group">
+            <label>Size:</label>
+            <input type="range" id="brushSize" min="1" max="50" value="5">
+            <span id="sizeValue">5</span>
+        </div>
+        
+        <div class="buttons">
+            <button id="clearBtn">🗑️ Clear</button>
+            <button id="undoBtn">↶ Undo</button>
+            <button id="saveBtn">💾 Save</button>
+        </div>
+    </div>
+
+    <!-- Instructions -->
+    <div class="instructions">
+        <h3>👋 Gesture Guide</h3>
+        <ul>
+            <li><span class="gesture-icon">👉</span> <strong>Right Hand:</strong> Index finger to draw</li>
+            <li><span class="gesture-icon">👈</span> <strong>Left Hand:</strong> Palm open to clear screen</li>
+            <li><span class="gesture-icon">🎯</span> Move your finger slowly for smooth lines</li>
+        </ul>
+    </div>
+
+    <!-- Debug Info -->
+    <div class="debug" id="debugInfo">
+        Status: Loading...
+    </div>
+
+    <script>
+        class SimpleHandDrawer {
+            constructor() {
+                // Canvas elements
+                this.drawingCanvas = document.getElementById('drawingCanvas');
+                this.drawingCtx = this.drawingCanvas.getContext('2d');
+                this.cameraCanvas = document.getElementById('cameraCanvas');
+                this.cameraCtx = this.cameraCanvas.getContext('2d');
+                
+                // Drawing state
+                this.isDrawing = false;
+                this.lastX = 0;
+                this.lastY = 0;
+                this.currentColor = '#ff0000';
+                this.brushSize = 5;
+                this.drawingHistory = [];
+                
+                // Hand detection
+                this.video = null;
+                this.hands = null;
+                this.camera = null;
+                this.isDetecting = false;
+                
+                // Smooth drawing
+                this.points = [];
+                this.smoothFactor = 0.5;
+                
+                this.init();
+            }
+
+            init() {
+                // Set canvas sizes
+                this.resizeCanvas();
+                window.addEventListener('resize', () => this.resizeCanvas());
+                
+                // Initialize drawing context
+                this.setupDrawingContext();
+                
+                // Setup UI events
+                this.setupUI();
+                
+                // Start hand detection
+                this.startHandDetection();
+                
+                // Start animation loop
+                this.animate();
+            }
+
+            resizeCanvas() {
+                // Set drawing canvas to full screen
+                this.drawingCanvas.width = window.innerWidth;
+                this.drawingCanvas.height = window.innerHeight;
+                
+                // Set camera canvas size
+                this.cameraCanvas.width = 300;
+                this.cameraCanvas.height = 225;
+                
+                // Save current drawing to history
+                this.saveToHistory();
+            }
+
+            setupDrawingContext() {
+                this.drawingCtx.lineCap = 'round';
+                this.drawingCtx.lineJoin = 'round';
+                this.drawingCtx.strokeStyle = this.currentColor;
+                this.drawingCtx.lineWidth = this.brushSize;
+                
+                // Set black background
+                this.drawingCtx.fillStyle = '#000';
+                this.drawingCtx.fillRect(0, 0, this.drawingCanvas.width, this.drawingCanvas.height);
+                this.saveToHistory();
+            }
+
+            setupUI() {
+                // Color picker
+                document.getElementById('colorPicker').addEventListener('input', (e) => {
+                    this.currentColor = e.target.value;
+                    this.drawingCtx.strokeStyle = this.currentColor;
+                });
+
+                // Brush size
+                const brushSize = document.getElementById('brushSize');
+                const sizeValue = document.getElementById('sizeValue');
+                
+                brushSize.addEventListener('input', (e) => {
+                    this.brushSize = parseInt(e.target.value);
+                    this.drawingCtx.lineWidth = this.brushSize;
+                    sizeValue.textContent = this.brushSize;
+                });
+
+                // Clear button
+                document.getElementById('clearBtn').addEventListener('click', () => {
+                    this.clearCanvas();
+                });
+
+                // Undo button
+                document.getElementById('undoBtn').addEventListener('click', () => {
+                    this.undo();
+                });
+
+                // Save button
+                document.getElementById('saveBtn').addEventListener('click', () => {
+                    this.saveDrawing();
+                });
+            }
+
+            async startHandDetection() {
+                try {
+                    // Create video element
+                    this.video = document.createElement('video');
+                    
+                    // Get camera access
+                    const stream = await navigator.mediaDevices.getUserMedia({
+                        video: {
+                            width: { ideal: 640 },
+                            height: { ideal: 480 },
+                            facingMode: 'user'
+                        }
+                    });
+                    
+                    this.video.srcObject = stream;
+                    await this.video.play();
+                    
+                    // Load MediaPipe Hands
+                    await this.loadMediaPipeHands();
+                    
+                } catch (error) {
+                    console.error('Error accessing camera:', error);
+                    document.getElementById('debugInfo').textContent = 'Error: ' + error.message;
+                }
+            }
+
+            async loadMediaPipeHands() {
+                return new Promise((resolve, reject) => {
+                    // Load MediaPipe script
+                    const script = document.createElement('script');
+                    script.src = 'https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js';
+                    script.crossOrigin = 'anonymous';
+                    
+                    script.onload = () => {
+                        this.hands = new Hands({
+                            locateFile: (file) => {
+                                return `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`;
+                            }
+                        });
+                        
+                        this.hands.setOptions({
+                            maxNumHands: 2,
+                            modelComplexity: 0,
+                            minDetectionConfidence: 0.5,
+                            minTrackingConfidence: 0.5
+                        });
+                        
+                        this.hands.onResults((results) => this.onHandResults(results));
+                        
+                        // Start camera
+                        this.camera = new Camera(this.video, {
+                            onFrame: async () => {
+                                if (this.hands) {
+                                    await this.hands.send({image: this.video});
+                                }
+                            },
+                            width: 640,
+                            height: 480
+                        });
+                        
+                        this.camera.start();
+                        this.isDetecting = true;
+                        document.getElementById('debugInfo').textContent = 'Status: Ready - Show your hand to camera';
+                        resolve();
+                    };
+                    
+                    script.onerror = reject;
+                    document.head.appendChild(script);
+                });
+            }
+
+            onHandResults(results) {
+                if (!this.isDetecting) return;
+                
+                // Draw camera feed
+                this.cameraCtx.save();
+                this.cameraCtx.clearRect(0, 0, this.cameraCanvas.width, this.cameraCanvas.height);
+                this.cameraCtx.drawImage(results.image, 0, 0, this.cameraCanvas.width, this.cameraCanvas.height);
+                
+                let rightHandIndex = null;
+                let leftHandPalm = false;
+                
+                // Process detected hands
+                if (results.multiHandLandmarks) {
+                    results.multiHandLandmarks.forEach((landmarks, index) => {
+                        const handedness = results.multiHandedness[index];
+                        
+                        // Draw landmarks for visual feedback
+                        this.drawLandmarks(landmarks);
+                        
+                        if (handedness.label === 'Right') {
+                            // Get index finger tip for right hand
+                            const indexTip = landmarks[8];
+                            rightHandIndex = {
+                                x: (1 - indexTip.x) * window.innerWidth, // Mirror for drawing
+                                y: indexTip.y * window.innerHeight
+                            };
+                        } else if (handedness.label === 'Left') {
+                            // Check if left palm is open (all fingers extended)
+                            if (this.isPalmOpen(landmarks)) {
+                                leftHandPalm = true;
+                            }
+                        }
+                    });
+                }
+                
+                this.cameraCtx.restore();
+                
+                // Process gestures
+                this.processGestures(rightHandIndex, leftHandPalm);
+            }
+
+            drawLandmarks(landmarks) {
+                this.cameraCtx.strokeStyle = '#00FF00';
+                this.cameraCtx.lineWidth = 2;
+                this.cameraCtx.fillStyle = '#FF0000';
+                
+                // Draw all landmarks
+                landmarks.forEach(landmark => {
+                    const x = landmark.x * this.cameraCanvas.width;
+                    const y = landmark.y * this.cameraCanvas.height;
+                    
+                    this.cameraCtx.beginPath();
+                    this.cameraCtx.arc(x, y, 3, 0, 2 * Math.PI);
+                    this.cameraCtx.fill();
+                });
+                
+                // Highlight index finger tip
+                const indexTip = landmarks[8];
+                const x = indexTip.x * this.cameraCanvas.width;
+                const y = indexTip.y * this.cameraCanvas.height;
+                
+                this.cameraCtx.fillStyle = '#FFFF00';
+                this.cameraCtx.beginPath();
+                this.cameraCtx.arc(x, y, 6, 0, 2 * Math.PI);
+                this.cameraCtx.fill();
+            }
+
+            isPalmOpen(landmarks) {
+                // Check if all fingers are extended
+                const fingerTips = [8, 12, 16, 20]; // Index, Middle, Ring, Pinky
+                let extendedFingers = 0;
+                
+                fingerTips.forEach(tipIndex => {
+                    const tip = landmarks[tipIndex];
+                    const pip = landmarks[tipIndex - 2]; // PIP joint
+                    
+                    if (tip.y < pip.y) { // Finger is extended if tip is above PIP
+                        extendedFingers++;
+                    }
+                });
+                
+                return extendedFingers >= 3; // Most fingers extended
+            }
+
+            processGestures(rightHandIndex, leftHandPalm) {
+                // Update debug info
+                let debugText = 'Status: ';
+                debugText += rightHandIndex ? 'Drawing' : 'No right hand';
+                debugText += leftHandPalm ? ' | Left palm open' : '';
+                document.getElementById('debugInfo').textContent = debugText;
+                
+                // Clear screen with left palm
+                if (leftHandPalm) {
+                    this.clearCanvas();
+                    return;
+                }
+                
+                // Draw with right index finger
+                if (rightHandIndex) {
+                    this.startDrawing(rightHandIndex.x, rightHandIndex.y);
+                } else {
+                    this.stopDrawing();
+                }
+            }
+
+            startDrawing(x, y) {
+                if (!this.isDrawing) {
+                    // Start new line
+                    this.isDrawing = true;
+                    this.lastX = x;
+                    this.lastY = y;
+                    this.points = [{x, y}];
+                    
+                    this.drawingCtx.beginPath();
+                    this.drawingCtx.moveTo(x, y);
+                } else {
+                    // Continue line with smoothing
+                    this.points.push({x, y});
+                    
+                    // Keep only last few points for smoothing
+                    if (this.points.length > 10) {
+                        this.points.shift();
+                    }
+                    
+                    // Calculate smoothed point
+                    const smoothed = this.calculateSmoothedPoint();
+                    
+                    // Draw line
+                    this.drawingCtx.lineTo(smoothed.x, smoothed.y);
+                    this.drawingCtx.stroke();
+                    
+                    // Update last position
+                    this.lastX = smoothed.x;
+                    this.lastY = smoothed.y;
+                }
+            }
+
+            calculateSmoothedPoint() {
+                if (this.points.length < 2) {
+                    return this.points[0] || {x: 0, y: 0};
+                }
+                
+                // Simple moving average for smoothing
+                let sumX = 0;
+                let sumY = 0;
+                
+                this.points.forEach(point => {
+                    sumX += point.x;
+                    sumY += point.y;
+                });
+                
+                return {
+                    x: sumX / this.points.length,
+                    y: sumY / this.points.length
+                };
+            }
+
+            stopDrawing() {
+                if (this.isDrawing) {
+                    this.isDrawing = false;
+                    
+                    // Save to history when line is completed
+                    this.saveToHistory();
+                    this.points = [];
+                }
+            }
+
+            clearCanvas() {
+                this.saveToHistory();
+                this.drawingCtx.fillStyle = '#000';
+                this.drawingCtx.fillRect(0, 0, this.drawingCanvas.width, this.drawingCanvas.height);
+                this.saveToHistory();
+            }
+
+            saveToHistory() {
+                // Save current canvas state
+                const imageData = this.drawingCtx.getImageData(0, 0, 
+                    this.drawingCanvas.width, this.drawingCanvas.height);
+                this.drawingHistory.push(imageData);
+                
+                // Keep only last 20 states
+                if (this.drawingHistory.length > 20) {
+                    this.drawingHistory.shift();
+                }
+            }
+
+            undo() {
+                if (this.drawingHistory.length > 1) {
+                    // Remove current state
+                    this.drawingHistory.pop();
+                    
+                    // Restore previous state
+                    const previousState = this.drawingHistory[this.drawingHistory.length - 1];
+                    this.drawingCtx.putImageData(previousState, 0, 0);
+                } else if (this.drawingHistory.length === 1) {
+                    // Only initial state remains, clear canvas
+                    this.clearCanvas();
+                }
+            }
+
+            saveDrawing() {
+                const link = document.createElement('a');
+                link.download = 'hand-drawing.png';
+                link.href = this.drawingCanvas.toDataURL('image/png');
+                link.click();
+            }
+
+            animate() {
+                // Animation loop for smooth drawing
+                requestAnimationFrame(() => this.animate());
+                
+                // Additional drawing logic can go here
+            }
+        }
+
+        // Start the app when page loads
+        window.addEventListener('load', () => {
+            // Add loading indicator
+            const debugInfo = document.getElementById('debugInfo');
+            debugInfo.textContent = 'Loading hand detection... Please allow camera access.';
+            
+            // Start the app
+            const app = new SimpleHandDrawer();
+            
+            // Make app globally accessible
+            window.handDrawer = app;
+            
+            // Keyboard shortcuts
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape') {
+                    // Exit fullscreen or show exit confirmation
+                    if (confirm('Exit drawing mode?')) {
+                        location.reload();
+                    }
+                } else if (e.key === 'c') {
+                    app.clearCanvas();
+                } else if (e.key === 'z' && (e.ctrlKey || e.metaKey)) {
+                    app.undo();
+                    e.preventDefault();
+                }
+            });
+        });
+
+        // Request fullscreen on user interaction
+        document.addEventListener('click', () => {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen().catch(err => {
+                    console.log('Fullscreen failed:', err);
+                });
+            }
+        }, { once: true });
+    </script>
+</body>
+</html>
